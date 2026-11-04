@@ -46,7 +46,8 @@
   select, option { background: var(--panel); color: var(--ink); }
   button, .drop .row a, .filebtn { background: #34483e; border-color: #5c7a6a; color: #fff; font-weight: 600; }   /* buttons stand out from the panel */
   button:hover, .drop .row a:hover, .filebtn:hover { background: #41594d; border-color: var(--gfp); }
-  [hidden] { display: none !important; }   /* hidden must win over display: grid/flex rules (the ROM box stayed visible) */
+  [hidden] { display: none !important; }
+  @media (hover: hover) and (pointer: fine) { .pad { display: none !important; } }   /* on-screen 2P buttons only on touch screens */   /* hidden must win over display: grid/flex rules (the ROM box stayed visible) */
   .screen { width: 100%; max-width: 384px; }
   .screen #view, .screen #demo { width: 100%; }
   .badge { padding: 3px 9px; border-radius: 999px; font-size: .78rem; font-weight: 700; letter-spacing: .03em; background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
@@ -100,8 +101,10 @@
     <div><div class="label">켜진 감각</div><div class="chips" id="senses"></div></div>
     <div class="row">
       <button id="restart" hidden>새 게임</button>
+      <button id="coop" hidden>꼬마선충과 함께 게임하기</button>
       <button id="forgetRom" hidden>저장된 롬 지우기</button>
     </div>
+    <p class="cap" id="coopHelp" hidden>당신은 하늘색 2P예요. <b>W·A·S·D</b>로 움직이고 <b>J</b>로 쏴요. 휴대폰은 게임 화면 아래 버튼을 쓰세요. 노란 1P는 계속 꼬마선충이 조종해요.</p>
     <div class="label">기록</div>
     <pre id="log"></pre>
   </div>
@@ -179,9 +182,9 @@ async function newGame() {
 }
 function setCoop(on) {
   coop = on;
-  const cb = $("coop");                             // the 2P button is off the page for now
-  if (cb) { cb.classList.toggle("on", on); cb.textContent = on ? "혼자 하기" : "같이 하기 (2P)"; }
-  $("pad").hidden = !on;
+  $("coop").classList.toggle("on", on); $("coop").textContent = on ? "꼬마선충 혼자 하기" : "꼬마선충과 함께 게임하기";
+  $("pad").hidden = !on; $("coopHelp").hidden = !on;
+  setStatus("live", on ? "실시간 · 꼬마선충(1P)과 함께 하는 중" : "실시간 · 꼬마선충이 지금 플레이 중");
   newGame();
 }
 // on-screen pad for player 2: press and hold, several fingers at once
@@ -241,6 +244,7 @@ function loop() {
 }
 
 $("restart").onclick = () => newGame();
+$("coop").onclick = () => setCoop(!coop);   // 2P: the worm keeps player 1, a person plays player 2
 $("brainSel").onchange = e => loadBrain(e.target.value);
 
 // ---- the ROM: dropped or picked by the visitor, kept only in this browser
@@ -284,7 +288,7 @@ function setStatus(kind, text) { const b = $("status"); b.className = "badge " +
 function goLive() { setStatus("live", "실시간 · 꼬마선충이 지금 플레이 중"); }
 function startMAME(buf) {
   if (started) return; started = true;
-  $("demoBox").hidden = true; $("drop").hidden = true; $("liveBox").hidden = false; $("restart").hidden = false; $("forgetRom").hidden = false; log("롬 확인, MAME 시작");
+  $("demoBox").hidden = true; $("drop").hidden = true; $("liveBox").hidden = false; $("restart").hidden = false; $("coop").hidden = false; $("forgetRom").hidden = false; log("롬 확인, MAME 시작");
   setStatus("wait", "게임 켜는 중…");
   if ($("demo").src) $("demo").pause();
   window.Module = {
