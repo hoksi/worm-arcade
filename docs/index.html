@@ -48,6 +48,10 @@
   button:hover, .drop .row a:hover, .filebtn:hover { background: #41594d; border-color: var(--gfp); }
   [hidden] { display: none !important; }
   .check { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; user-select: none; }
+  .coophelp { border: 1px solid #5fd3e6; background: rgba(95, 211, 230, .12); color: var(--ink); border-radius: 8px; padding: 10px 12px; line-height: 1.9; }
+  .coophelp b { color: #8be8f5; }
+  .coophelp span { color: var(--ink); font-size: .9rem; }
+  kbd { display: inline-block; min-width: 1.6em; text-align: center; padding: 0 6px; margin-right: 3px; border: 1px solid #8be8f5; border-bottom-width: 3px; border-radius: 5px; background: #0e1a1d; color: #fff; font: 700 .95rem ui-monospace, monospace; }
   .check input { width: 20px; height: 20px; accent-color: var(--gfp); margin: 0; padding: 0; cursor: pointer; }
   @media (hover: hover) and (pointer: fine) { .pad { display: none !important; } }   /* on-screen 2P buttons only on touch screens */   /* hidden must win over display: grid/flex rules (the ROM box stayed visible) */
   .screen { width: 100%; max-width: 384px; }
@@ -102,11 +106,11 @@
     <div class="row num" id="nums"></div>
     <div><div class="label">Active senses</div><div class="chips" id="senses"></div></div>
     <label class="check" id="coopBox" hidden><input type="checkbox" id="coop"> Play with the worm (player 2)</label>
+    <div class="coophelp" id="coopHelp" hidden><b>You are sky-blue player 2.</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>J</kbd> fire<br><span>On a phone, use the buttons under the game. Yellow player 1 is still the worm.</span></div>
     <div class="row">
       <button id="restart" hidden>New game</button>
       <button id="forgetRom" hidden>Forget saved ROM</button>
     </div>
-    <p class="cap" id="coopHelp" hidden>You are sky-blue player 2: move with <b>W A S D</b>, fire with <b>J</b>. On a phone use the buttons under the game. Yellow player 1 is still the worm.</p>
     <div class="label">Log</div>
     <pre id="log"></pre>
   </div>
@@ -174,11 +178,13 @@ const tap = (name, ms = 150) => new Promise(r => { key(name, true); setTimeout((
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let coop = false;
 // 1P: the worm alone. 2P (co-op): soft-reset MAME, two coins, 2-player start; the worm keeps player 1, a person plays 2
-async function newGame() {
+// fresh = true when the machine is already on the title screen (boot, game over); otherwise a game may be running
+// (1 or 2 players), so reset first — without it "New game" or unticking 2P only added a coin to the running game
+async function newGame(fresh = false) {
   hold([]);
-  if (!coop) { await tap("coin"); await tap("start"); log("coin in, start"); return; }
   const was = running; running = false;
-  await tap("reset"); await sleep(5000);
+  if (!fresh) { await tap("reset"); await sleep(5000); }
+  if (!coop) { await tap("coin"); await tap("start"); running = was; log("coin in, start"); return; }
   await tap("coin"); await tap("coin"); await tap("start2");
   running = was; log("two players: the worm is player 1, you are player 2");
 }
@@ -230,7 +236,8 @@ function loop() {
   o.enemies = o.enemies.concat(p2);                         // two players: player 2 is felt like a predator (bumping kills both)
   if (!o.player) {
     hold([]); player.act(o);
-    if (++noPlayer === 15 * 6) { noPlayer = 0; newGame(); }   // ~6 s without a tank: game over -> coin + start
+    if (p2.length) noPlayer = 0;                             // the worm is out but player 2 still plays: let them finish
+    else if (++noPlayer === 15 * 6) { noPlayer = 0; newGame(true); }   // ~6 s without any tank: game over -> coin + start
     $("verdict").textContent = "no tank (explosion, respawn or game over)";
     return;
   }
@@ -298,7 +305,7 @@ function startMAME(buf) {
     canvas: $("canvas"),
     preRun: [() => { FS.mkdir("/roms"); FS.writeFile("/roms/supertnk.zip", new Uint8Array(buf)); FS.mkdir("/cfg"); FS.writeFile("/cfg/default.cfg", P2CFG); }],
     print: t => console.log(t), printErr: t => console.log("ERR " + t), onAbort: e => log("MAME stopped: " + e),
-    onRuntimeInitialized: () => { log("MAME ready"); setTimeout(async () => { booted = true; goLive(); await newGame(); }, 6000); },
+    onRuntimeInitialized: () => { log("MAME ready"); setTimeout(async () => { booted = true; goLive(); await newGame(true); }, 6000); },
   };
   const s = document.createElement("script"); s.src = "mame/supertnk.js"; document.body.appendChild(s);
 }
