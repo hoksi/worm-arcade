@@ -47,6 +47,8 @@
   button, .drop .row a, .filebtn { background: #34483e; border-color: #5c7a6a; color: #fff; font-weight: 600; }   /* buttons stand out from the panel */
   button:hover, .drop .row a:hover, .filebtn:hover { background: #41594d; border-color: var(--gfp); }
   [hidden] { display: none !important; }
+  .check { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; user-select: none; }
+  .check input { width: 20px; height: 20px; accent-color: var(--gfp); margin: 0; padding: 0; cursor: pointer; }
   @media (hover: hover) and (pointer: fine) { .pad { display: none !important; } }   /* on-screen 2P buttons only on touch screens */   /* hidden must win over display: grid/flex rules (the ROM box stayed visible) */
   .screen { width: 100%; max-width: 384px; }
   .screen #view, .screen #demo { width: 100%; }
@@ -99,9 +101,9 @@
     <div class="row"><span class="label">Now</span><span class="big" id="verdict">waiting</span></div>
     <div class="row num" id="nums"></div>
     <div><div class="label">Active senses</div><div class="chips" id="senses"></div></div>
+    <label class="check" id="coopBox" hidden><input type="checkbox" id="coop"> Play with the worm (player 2)</label>
     <div class="row">
       <button id="restart" hidden>New game</button>
-      <button id="coop" hidden>Play with the worm</button>
       <button id="forgetRom" hidden>Forget saved ROM</button>
     </div>
     <p class="cap" id="coopHelp" hidden>You are sky-blue player 2: move with <b>W A S D</b>, fire with <b>J</b>. On a phone use the buttons under the game. Yellow player 1 is still the worm.</p>
@@ -182,7 +184,7 @@ async function newGame() {
 }
 function setCoop(on) {
   coop = on;
-  $("coop").classList.toggle("on", on); $("coop").textContent = on ? "Worm alone" : "Play with the worm";
+  $("coop").checked = on;
   $("pad").hidden = !on; $("coopHelp").hidden = !on;
   setStatus("live", on ? "LIVE · playing together with the worm (player 1)" : "LIVE · the worm is playing now");
   newGame();
@@ -244,7 +246,7 @@ function loop() {
 }
 
 $("restart").onclick = () => newGame();
-$("coop").onclick = () => setCoop(!coop);   // 2P: the worm keeps player 1, a person plays player 2
+$("coop").onchange = e => setCoop(e.target.checked);   // 2P: the worm keeps player 1, a person plays player 2
 $("brainSel").onchange = e => loadBrain(e.target.value);
 
 // ---- the ROM: dropped or picked by the visitor, kept only in this browser
@@ -288,7 +290,7 @@ function setStatus(kind, text) { const b = $("status"); b.className = "badge " +
 function goLive() { setStatus("live", "LIVE · the worm is playing now"); }
 function startMAME(buf) {
   if (started) return; started = true;
-  $("demoBox").hidden = true; $("drop").hidden = true; $("liveBox").hidden = false; $("restart").hidden = false; $("coop").hidden = false; $("forgetRom").hidden = false; log("ROM found, starting MAME");
+  $("demoBox").hidden = true; $("drop").hidden = true; $("liveBox").hidden = false; $("restart").hidden = false; $("coopBox").hidden = false; $("forgetRom").hidden = false; log("ROM found, starting MAME");
   setStatus("wait", "Starting the game…");
   if ($("demo").src) $("demo").pause();
   window.Module = {
