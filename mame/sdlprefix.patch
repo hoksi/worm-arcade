@@ -1,0 +1,13 @@
+diff --git a/src/osd/sdl/sdlprefix.h b/src/osd/sdl/sdlprefix.h
+index 0678b3dd..af7dc1fc 100644
+--- a/src/osd/sdl/sdlprefix.h
++++ b/src/osd/sdl/sdlprefix.h
+@@ -66,7 +66,7 @@
+ #if defined(__EMSCRIPTEN__)
+ #define SDLMAME_EMSCRIPTEN 1
+ #define SDLMAME_NO64BITIO 1
+-struct _IO_FILE {};  //_IO_FILE is an opaque type in the emscripten libc which makes clang cranky
++// struct _IO_FILE {};  // 2026-11-03: removed for emscripten 6.x, whose libc already defines _IO_FILE
+ #endif
+ 
+ #if defined(__ANDROID__)

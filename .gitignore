@@ -1,0 +1,5 @@
+worm/run/
+__pycache__/
+*.pyc
+mame/mame-src/
+arcade/run/

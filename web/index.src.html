@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>꼬마선충 연구소</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
+<style>
+/* Layout: a lab bench — stimulus panel, the 448-node brain as a lit specimen, motor readout dials. */
+:root {
+  --bg: #eef1ec;          /* agar plate */
+  --panel: #f8faf6;
+  --line: #d3dacf;
+  --ink: #1d2a24;
+  --muted: #5d6b63;
+  --gfp: #12924f;         /* GFP glow = neuron activity */
+  --gfp-soft: rgba(18,146,79,.14);
+  --alert: #c8384f;       /* danger / spit */
+  --input: #2f6fb3;       /* stimulated neuron ring */
+  --off: #9aa59e;         /* silenced */
+  --dot: #c4ccc6;         /* resting neuron */
+  --worm-n: #7d8a83;   /* untrained model; the others come from models/index.json */
+  --display: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1411; --panel: #131c18; --line: #24322b; --ink: #e2ebe5; --muted: #8fa198;
+  --gfp: #39e07f; --gfp-soft: rgba(57,224,127,.14); --alert: #ff6b7f; --input: #6fb0ff; --off: #4a5650; --dot: #26332d; --worm-b: #39e07f; --worm-a2: #6fb0ff; --worm-a1: #f0a640; --worm-a2e: #b597f0; --worm-b2e: #45d1cc; --worm-bcd: #f07ab8; --worm-acd: #d9a066; --worm-n: #8a978f;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0d1411; --panel: #131c18; --line: #24322b; --ink: #e2ebe5; --muted: #8fa198;
+  --gfp: #39e07f; --gfp-soft: rgba(57,224,127,.14); --alert: #ff6b7f; --input: #6fb0ff; --off: #4a5650; --dot: #26332d; --worm-b: #39e07f; --worm-a2: #6fb0ff; --worm-a1: #f0a640; --worm-a2e: #b597f0; --worm-b2e: #45d1cc; --worm-bcd: #f07ab8; --worm-acd: #d9a066; --worm-n: #8a978f;
+  color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); line-height: 1.55; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 18px; }
+.toprow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.lang { color: var(--input); font-size: .9rem; white-space: nowrap; }
+header h1 { font-family: var(--display); font-weight: 700; font-size: 1.6rem; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+header p { margin: 4px 0 0; color: var(--muted); }
+header p.lead { color: var(--ink); font-size: 1.05rem; margin-top: 8px; }
+.links { display: flex; gap: 14px; align-items: baseline; white-space: nowrap; }
+.links a { color: var(--input); font-size: .9rem; }
+.bench { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
+.bench > aside { grid-column: 1; grid-row: 1 / span 2; }
+.bench > .readout { grid-column: 2; grid-row: 1; }
+.bench > .map { grid-column: 2; grid-row: 2; }
+@media (max-width: 820px) { .bench { grid-template-columns: minmax(0, 1fr); }
+  .bench > aside, .bench > .readout, .bench > .map { grid-column: 1; grid-row: auto; }
+  .bench > .readout { order: 1; } .bench > aside { order: 2; } .bench > .map { order: 3; } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 12px; min-width: 0; grid-template-columns: minmax(0, 1fr); }
+.label { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.group { display: grid; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 5px 11px; font-size: .86rem; }
+.chip[aria-pressed="true"] { background: var(--input); border-color: var(--input); color: #fff; }
+.chip:focus-visible, .btn:focus-visible, select:focus-visible { outline: 2px solid var(--input); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { border: 1px solid var(--ink); background: var(--ink); color: var(--bg); border-radius: 6px; padding: 6px 12px; font-size: .88rem; font-weight: 600; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+select { width: 100%; font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); max-width: 100%; }
+option { background: var(--panel); color: var(--ink); }   /* the open list: readable in both themes */
+.preset { text-align: left; border: 1px dashed var(--line); background: transparent; border-radius: 8px; padding: 8px 10px; font-size: .86rem; }
+.preset b { display: block; font-weight: 600; }
+.preset span { color: var(--muted); font-size: .8rem; }
+.verdict { display: flex; flex-wrap: nowrap; gap: 12px; align-items: center; height: 2.4rem; overflow: hidden; white-space: nowrap; }   /* fixed height: no page jump on phones */
+.verdict .big { font-family: var(--display); font-size: 1.5rem; font-weight: 700; }
+.verdict .fire { color: var(--alert); }
+.verdict .sym { display: inline-block; min-width: 3.4em; font-size: 1.6rem; letter-spacing: .06em; line-height: 1; }
+.verdict .steps { min-width: 4.6em; font-variant-numeric: tabular-nums; }   /* steps first, fixed width: the action never shifts it */
+.verdict .words { font-size: .8rem; font-weight: 500; color: var(--muted); }
+.meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 560px) { .meters { grid-template-columns: minmax(0, 1fr); } }
+.meter { display: grid; gap: 4px; }
+.meter .name { display: flex; justify-content: space-between; font-size: .86rem; }
+.meter .val { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); font-size: .8rem; }
+.bar { position: relative; height: 12px; border-radius: 6px; background: var(--dot); overflow: hidden; }
+.bar .fill { position: absolute; top: 0; bottom: 0; background: var(--gfp); }
+.bar .th { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--ink); }
+.meter.spit .fill { background: var(--alert); }
+canvas#hist { width: 100%; height: 90px; display: block; }
+canvas#arena { width: 100%; max-width: 472px; aspect-ratio: 236 / 192; display: block; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.note { margin: 0; font-size: .8rem; color: var(--muted); }
+.pulse { display: flex; gap: 8px; align-items: center; font-size: .86rem; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.brainCard { margin: 0; font-size: .82rem; color: var(--muted); border-left: 4px solid var(--worm); padding-left: 8px; }
+canvas#arena { cursor: crosshair; }
+.map svg { width: 100%; height: auto; display: block; }
+.map text { fill: var(--muted); font-family: var(--body); font-size: 11px; }
+.n { fill: var(--dot); stroke: none; cursor: pointer; }
+.n.in { stroke: var(--input); stroke-width: 2; }
+.n.mot { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 2 2; }
+.n.sil { fill: var(--off) !important; opacity: 1 !important; }
+.glow { fill: var(--gfp); pointer-events: none; }
+.sil-x { stroke: var(--alert); stroke-width: 1.6; pointer-events: none; }
+.info { font-size: .86rem; color: var(--muted); min-height: 1.5em; }
+.info b { color: var(--ink); font-family: var(--mono); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .8rem; color: var(--muted); }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; margin-right: 5px; }
+.foot { font-size: .8rem; color: var(--muted); max-width: 80ch; }
+.foot code { font-family: var(--mono); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="toprow"><h1>꼬마선충 연구소</h1><nav class="links"><a href="index.ko.html">오락실로 가기</a><a href="https://github.com/hoksi/worm-arcade" target="_blank" rel="noopener">GitHub</a><a class="lang" href="lab.html" hreflang="en">English</a></nav></div>
+    <p class="lead">진짜 꼬마선충 배선도(뉴런과 근육 448개)에 진화로 찾은 값을 얹은 모델들이에요. 놀이터에 먹이를 주거나 포식자를 풀면 꼬마선충이 감각으로 느끼고 스스로 움직여요.</p>
+    <p>두 마리를 나란히 풀어 비교할 수 있고, 아래 뇌 지도에서 뉴런을 누르면 그 뉴런을 끌 수 있어요.</p>
+  </header>
+
+  <div class="bench">
+    <aside class="panel" aria-label="감각과 설정">
+      <div class="group">
+        <div class="label">첫 번째 꼬마선충</div>
+        <select id="brainSel" aria-label="모델 고르기"></select>
+        <p class="brainCard" id="brainCard"></p>
+      </div>
+      <div class="group" id="envCtl">
+        <div class="label">놀이터</div>
+        <div class="row">
+          <button class="btn" id="foodBtn">먹이 뿌리기</button>
+          <button class="btn" id="predBtn">포식자 풀기 (최대 2)</button>
+          <button class="btn ghost" id="predOff">포식자 치우기</button>
+          <button class="btn ghost" id="clearEnv">모두 치우기</button>
+          <button class="btn" id="heavenBtn">천국 먹이판 (76개)</button>
+        </div>
+        <div class="label">두 번째 꼬마선충</div>
+        <select id="cmpSel" aria-label="비교할 꼬마선충"><option value="">없음</option></select>
+        <p class="brainCard" id="cmpCard" hidden></p>
+        <p class="note">판을 누르면 그 자리에 먹이가 생겨요. 포식자에게 부딪히거나 포탄에 맞으면 맞은 쪽 몸에 아픔(강한 촉각)이 들어가고, 꼬마선충은 잠깐 깜빡이며 무적이 되고, 포식자는 꼬마선충에게서 떨어진 다른 자리로 물러나요. 꼬마선충은 죽지 않아요.</p>
+      </div>
+      <div class="label" id="sensesLabel">지금 켜진 감각</div>
+      <div id="senses"></div>
+      <div class="row">
+        <button class="btn" id="play">일시정지</button>
+        <button class="btn ghost" id="reset">처음부터</button>
+        <button class="btn ghost" id="clearSil">끈 뉴런 되살리기</button>
+      </div>
+    </aside>
+
+      <div class="panel readout" aria-live="polite">
+        <div class="verdict"><span class="val steps" id="stepNo"></span><span class="label">지금 행동</span><span class="big" id="verdict">—</span></div>
+        <canvas id="arena" aria-label="꼬마선충이 움직이는 판"></canvas>
+        <p class="note" id="envStats"></p>
+        <p class="note" id="arenaNote"></p>
+        <div class="meters" id="meters"></div>
+        <canvas id="hist" aria-label="최근 쏘기 신호와 문턱"></canvas>
+      </div>
+      <div class="panel map">
+        <div class="legend">
+          <span><i style="background:var(--gfp)"></i>켜진 정도</span>
+          <span><i style="border:2px solid var(--input)"></i>지금 감각이 들어가는 뉴런</span>
+          <span><i style="border:1px dashed var(--ink)"></i>행동을 읽는 운동 뉴런</span>
+          <span><i style="background:var(--off)"></i>끈 뉴런</span>
+        </div>
+        <svg id="map" role="img" aria-label="뉴런 지도"></svg>
+        <div class="info" id="info">뉴런을 누르면 이름과 값이 보이고, 한 번 더 누르면 꺼져요.</div>
+      </div>
+  </div>
+
+  <p class="foot"><a href="index.ko.html">← 꼬마선충이 슈퍼탱크를 플레이하는 페이지</a><br>배선도: OpenWorm c302 <code>herm_full_edgelist.csv</code> (Cook 외 2019, 암수한몸, MIT 라이선스). 진화 값: 각 모델 설명에 적힌 곳(포식자가 있는 놀이터나 천국)에서 학습한 실험마다 가장 잘한 개체. 학습 때처럼 걸음의 10%는 직전 행동이 한 번 더 나와요. 계산은 서버의 파이썬 뇌와 같은 식이고, 같은 입력에서 뉴런 값 차이는 0.000001 이하예요. 이 페이지는 전부 브라우저 안에서 돌아요. 소스 코드: <a href="https://github.com/hoksi/worm-arcade" target="_blank" rel="noopener">github.com/hoksi/worm-arcade</a> (MIT).</p>
+</div>
+
+<script>
+/*BRAIN_JS*/
+</script>
+<script>
+/*PLAY_JS*/
+</script>
+<script>
+const DATA = /*DATA_JSON*/;
+const base = DATA.base;
+
+const SENSE_UI = [
+  ["먹이", [["smell_up", "냄새 진해짐"], ["smell_down", "냄새 약해짐"], ["mouth_food", "바로 앞에 먹이"]]],
+  ["적 탱크", [["pred_front", "앞"], ["pred_back", "뒤"], ["pred_L", "왼쪽"], ["pred_R", "오른쪽"], ["mouth_noxious", "정면의 적 (입 I2)"]]],
+  ["포탄·벽 (촉각)", [["touch_front", "앞"], ["touch_back", "뒤"], ["touch_L", "왼쪽"], ["touch_R", "오른쪽"], ["nose", "코끝에 벽"]]],
+];
+const MOVE_KO = { forward: "앞", back: "뒤", stay: "멈춤" };
+
+let brain, active = new Set(), running = true, stepNo = 0, hist = [];
+
+// which neurons a sense reaches (strong translator weights) and which neurons are read for actions (free wiring)
+function addFreeMaps(b, p) {
+  b.senseNeurons = k => { const r = p.sense_keys.indexOf(k); return p.in_idx.filter((i, j) => Math.abs(p.Win[r][p.in_group[j]]) >= 1.0); };
+  b.motorNeurons = () => p.out_idx;
+}
+const PULSE = 8;                                       // steps of 120 ms: about one second
+const pulse = new Map();                               // sense -> steps left (short stimulus)
+const shortMode = () => false;                         // the direct-stimulus controls were removed (2026-11-03)
+function makeBrain(key) {
+  const p = key === "naive" ? null : DATA.params[key];
+  const b = new WormBrain(base, p);
+  if (p && p.free) {                    // free wiring: the evolved translator replaces the hand-picked senses and motors
+    const Win = p.Win.map(r => Float32Array.from(r)), Wout = p.Wout.map(r => Float32Array.from(r)), G = Win[0].length;
+    const raw = b.step.bind(b);
+    b.step = inp => {
+      const xg = new Float32Array(G);
+      p.sense_keys.forEach((k, r) => { const v = Math.fround(inp[k] || 0); if (v) for (let g = 0; g < G; g++) xg[g] = Math.fround(xg[g] + Math.fround(v * Win[r][g])); });
+      const I = new Float32Array(b.n); p.in_idx.forEach((i, j) => { I[i] = xg[p.in_group[j]]; });
+      raw(I);
+      const m = {}; p.actions.forEach((a, r) => { let acc = 0; p.out_idx.forEach((i, j) => { acc += Wout[r][j] * b.v[i]; }); m[a] = acc / p.out_idx.length * 10; });
+      return m;
+    };
+    addFreeMaps(b, p);
+  }
+  if (brain) for (const i of brain.silenced) b.silence(i);
+  brain = b; stepNo = 0; hist = [];
+}
+
+// ---------- brain selector
+const sel = document.getElementById("brainSel");
+// ---- models: listed in models/index.json (label, description, colour in both languages), each in models/<id>.json,
+// exactly what training writes as best.web.json (2026-11-03): drop a new JSON there and add a line.
+const LANG = document.documentElement.lang === "en" ? "en" : "ko";
+let ready = false;
+const WORM_COLOR = { naive: "--worm-n" }, BRAIN_NAME = { naive: "회색" }, BRAIN_DESC = {
+  naive: "회색 꼬마선충. 학습 전이라 모든 값이 기본이에요. 배선도만으로 어떻게 움직이는지 볼 수 있어요.",
+};
+async function loadBrains() {
+  const index = await (await fetch("models/index.json")).json();
+  DATA.params = {};
+  await Promise.all(index.map(async b => { DATA.params[b.id] = await (await fetch(`models/${b.id}.json`)).json(); }));
+  const light = [], dark = [];
+  for (const b of index) {
+    const tok = `--worm-${b.id.replace(/[^a-z0-9]/gi, "")}`;
+    light.push(`${tok}: ${b.color.light};`); dark.push(`${tok}: ${b.color.dark};`);
+    WORM_COLOR[b.id] = tok; BRAIN_NAME[b.id] = b[LANG].name; BRAIN_DESC[b.id] = b[LANG].desc;
+    sel.add(new Option(b[LANG].label, b.id));
+  }
+  const st = document.createElement("style");
+  st.textContent = `:root { ${light.join(" ")} } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ${dark.join(" ")} } } :root[data-theme="dark"] { ${dark.join(" ")} }`;
+  document.head.appendChild(st);
+  sel.add(new Option("회색 · 학습 전 (모든 값 기본)", "naive"));
+  for (const o of sel.options) document.getElementById("cmpSel").add(new Option(o.text, o.value));
+}
+sel.onchange = () => { showBrainCard(); if (mode === "env") makeWorms(); else { makeBrain(sel.value); resetArena(); } drawMap(); };
+
+// ---------- sense chips
+const sensesEl = document.getElementById("senses");
+const chipEls = {};
+for (const [title, items] of SENSE_UI) {
+  const g = document.createElement("div"); g.className = "group";
+  g.innerHTML = `<div class="label">${title}</div>`;
+  const c = document.createElement("div"); c.className = "chips";
+  for (const [key, ko] of items) {
+    const b = document.createElement("button"); b.className = "chip"; b.id = "s-" + key;
+    b.textContent = ko; b.setAttribute("aria-pressed", "false");
+    b.onclick = () => {
+      if (mode === "env") return;                     // in the playground the senses come from the world
+      if (shortMode()) { active.add(key); pulse.set(key, PULSE); }
+      else { active.has(key) ? active.delete(key) : active.add(key); pulse.delete(key); }
+      syncChips();
+    };
+    chipEls[key] = b; c.appendChild(b);
+  }
+  g.appendChild(c); sensesEl.appendChild(g);
+}
+function syncChips() {
+  for (const k in chipEls) chipEls[k].setAttribute("aria-pressed", active.has(k) ? "true" : "false");
+  const inSet = new Set(); for (const k of active) for (const i of (brain && brain.senseNeurons ? brain.senseNeurons(k) : ((brain && brain.senses) || base.senses)[k] || [])) inSet.add(i);
+  nodes.forEach((el, i) => el.classList.toggle("in", inSet.has(i)));
+}
+
+// ---------- neuron map
+const PHARYNX = /^(I[1-6]|M[1-5]|MI|MC[LR]|NSM[LR]|pm\d|mc\d)/;
+const MUSCLE = /^(dBWM|vBWM|um\d|vm\d|anal|intestine|int[LR]|sph|hyp)/;
+const BODYMOTOR = /^(VA|VB|DA|DB|AS|VD|DD|VC)\d\d$/;
+const SENSORY = /^(ADF|ADL|AFD|ASE|ASG|ASH|ASI|ASJ|ASK|AWA|AWB|AWC|PHA|PHB|PHC|ALM|AVM|PLM|PVM|PVD|FLP|OLQ|OLL|CEP|IL1|IL2|URX|URY|URA|URB|BAG|AQR|PQR|ADE|PDE|SDQ)/;
+const BANDS = [
+  ["감각 뉴런", n => SENSORY.test(n)],
+  ["사이 뉴런·머리 운동 뉴런", n => !PHARYNX.test(n) && !MUSCLE.test(n) && !BODYMOTOR.test(n) && !SENSORY.test(n)],
+  ["몸 운동 뉴런 (앞으로 VB·DB / 뒤로 VA·DA)", n => BODYMOTOR.test(n)],
+  ["인두 (먹기·뱉기)", n => PHARYNX.test(n)],
+  ["근육과 기타", n => MUSCLE.test(n)],
+];
+const svg = document.getElementById("map"), NS = "http://www.w3.org/2000/svg";
+const nodes = [], glows = [];
+let COLS = 34;
+const GAP = 20, R = 7;
+function drawMap() {
+  COLS = svg.clientWidth && svg.clientWidth < 600 ? 14 : 34;
+  svg.innerHTML = ""; nodes.length = 0; glows.length = 0;
+  const motorSet = new Set(brain.motorNeurons ? brain.motorNeurons() : Object.values(base.motors).flat());
+  let y = 14;
+  const placed = new Array(base.names.length);
+  for (const [title, test] of BANDS) {
+    const ids = base.names.map((n, i) => [n, i]).filter(([n]) => test(n)).map(([, i]) => i);
+    const t = document.createElementNS(NS, "text"); t.setAttribute("x", 4); t.setAttribute("y", y); t.textContent = `${title} · ${ids.length}`;
+    svg.appendChild(t); y += 14;
+    ids.forEach((i, k) => { placed[i] = [12 + (k % COLS) * GAP, y + Math.floor(k / COLS) * GAP]; });
+    y += Math.ceil(ids.length / COLS) * GAP + 12;
+  }
+  svg.setAttribute("viewBox", `0 0 ${12 + COLS * GAP} ${y}`);
+  base.names.forEach((nm, i) => {
+    const [cx, cy] = placed[i];
+    const c = document.createElementNS(NS, "circle");
+    c.setAttribute("cx", cx); c.setAttribute("cy", cy); c.setAttribute("r", R);
+    c.setAttribute("class", "n" + (motorSet.has(i) ? " mot" : "") + (brain.silenced.has(i) ? " sil" : ""));
+    c.setAttribute("tabindex", "0"); c.setAttribute("aria-label", nm);
+    const g = document.createElementNS(NS, "circle");
+    g.setAttribute("cx", cx); g.setAttribute("cy", cy); g.setAttribute("r", R - 1); g.setAttribute("class", "glow"); g.setAttribute("opacity", 0);
+    const tip = document.createElementNS(NS, "title"); tip.textContent = nm; c.appendChild(tip);
+    const pick = () => onPick(i);
+    c.addEventListener("click", pick);
+    c.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+    svg.appendChild(c); svg.appendChild(g); nodes.push(c); glows.push(g);
+    if (brain.silenced.has(i)) addX(cx, cy);
+  });
+  syncChips();
+}
+function addX(cx, cy) {
+  for (const [a, b, c, d] of [[-4, -4, 4, 4], [-4, 4, 4, -4]]) {
+    const l = document.createElementNS(NS, "line");
+    l.setAttribute("x1", cx + a); l.setAttribute("y1", cy + b); l.setAttribute("x2", cx + c); l.setAttribute("y2", cy + d);
+    l.setAttribute("class", "sil-x"); svg.appendChild(l);
+  }
+}
+let picked = null;
+function onPick(i) {
+  if (picked === i) { brain.silence(i, !brain.silenced.has(i)); drawMap(); }
+  picked = i; showInfo();
+}
+function showInfo() {
+  if (picked === null) return;
+  const nm = base.names[picked], v = brain.v[picked];
+  const sil = brain.silenced.has(picked);
+  const out = brain.out[picked];
+  const role = Object.entries(base.senses).filter(([, ids]) => ids.includes(picked)).map(([k]) => k)
+    .concat(Object.entries(base.motors).filter(([, ids]) => ids.includes(picked)).map(([k]) => "운동:" + k));
+  document.getElementById("info").innerHTML =
+    `<b>${nm}</b> 켜짐 ${v.toFixed(3)} · 보내는 세기 ${out.toFixed(2)}${out < 0 ? " (억제)" : ""}` +
+    (role.length ? ` · 역할 ${role.join(", ")}` : "") +
+    (sil ? ` · <span style="color:var(--alert)">꺼짐</span> (한 번 더 누르면 되살림)` : " · 한 번 더 누르면 끔");
+}
+
+// ---------- meters
+const metersEl = document.getElementById("meters");
+const METERS = [["move", "이동 (앞 − 뒤)"], ["turn", "회전 (왼 − 오)"], ["spit", "쏘기 (M1·pm3)"]];
+const meterEls = {};
+for (const [k, ko] of METERS) {
+  const m = document.createElement("div"); m.className = "meter " + k;
+  m.innerHTML = `<div class="name"><span>${ko}</span><span class="val"></span></div><div class="bar"><div class="fill"></div><div class="th"></div><div class="th th2"></div></div>`;
+  metersEl.appendChild(m); meterEls[k] = m;
+}
+function setMeter(k, value, th, signed) {
+  const m = meterEls[k], span = signed ? 0.3 : Math.max(0.6, th * 2);
+  const pos = x => signed ? 50 + Math.max(-50, Math.min(50, x / span * 50)) : Math.max(0, Math.min(100, x / span * 100));
+  const fill = m.querySelector(".fill");
+  if (signed) { const a = pos(0), b = pos(value); fill.style.left = Math.min(a, b) + "%"; fill.style.width = Math.abs(b - a) + "%"; }
+  else { fill.style.left = "0"; fill.style.width = pos(value) + "%"; }
+  const [t1, t2] = m.querySelectorAll(".th");
+  t1.style.left = pos(th) + "%";
+  t2.style.display = signed ? "" : "none"; t2.style.left = pos(-th) + "%";
+  m.querySelector(".val").textContent = `${value.toFixed(3)} / 문턱 ${th.toFixed(3)}`;
+}
+
+// ---------- spit history
+const cv = document.getElementById("hist"), ctx = cv.getContext("2d");
+function drawHist(th) {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== w * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+  const css = getComputedStyle(document.documentElement);
+  const top = Math.max(0.6, th * 2), Y = v => h - 14 - (v / top) * (h - 22);
+  ctx.strokeStyle = css.getPropertyValue("--line"); ctx.beginPath(); ctx.moveTo(0, Y(0)); ctx.lineTo(w, Y(0)); ctx.stroke();
+  ctx.setLineDash([4, 4]); ctx.strokeStyle = css.getPropertyValue("--ink"); ctx.beginPath(); ctx.moveTo(0, Y(th)); ctx.lineTo(w, Y(th)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = css.getPropertyValue("--muted"); ctx.font = "11px " + css.getPropertyValue("--body");
+  ctx.fillText("쏘기 문턱", 4, Y(th) - 4); ctx.fillText("최근 100걸음 쏘기 신호", 4, h - 2);
+  ctx.strokeStyle = css.getPropertyValue("--alert"); ctx.lineWidth = 2; ctx.beginPath();
+  hist.forEach((v, k) => { const x = w - (hist.length - 1 - k) * (w / 99); k ? ctx.lineTo(x, Y(v)) : ctx.moveTo(x, Y(v)); });
+  ctx.stroke(); ctx.lineWidth = 1;
+}
+
+// ---------- arena: the worm moves the way the game reads its motor neurons (worm.py act: turn = 90 degrees and a step,
+// backing up = turning round, 4 px per step on the 236 x 192 playfield)
+const AW = 236, AH = 192, HEAD = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+const arena = { x: AW / 2, y: AH / 2, h: 0, cd: 0, shell: null, trail: [] };
+const acv = document.getElementById("arena"), actx = acv.getContext("2d");
+function resetArena() { Object.assign(arena, { x: AW / 2, y: AH / 2, h: 0, cd: 0, shell: null, trail: [] }); }
+function moveArena(d) {
+  let step = false;
+  if (arena.cd > 0) arena.cd--;
+  else if (d.turn !== "none") { arena.h = (arena.h + (d.turn === "left" ? 3 : 1)) % 4; arena.cd = 3; step = true; }
+  if (!step && d.move === "forward") step = true;
+  if (!step && d.move === "back") { arena.h = (arena.h + 2) % 4; step = true; }
+  const [hx, hy] = HEAD[arena.h];
+  if (step) { arena.x = Math.min(Math.max(arena.x + hx * 4, 6), AW - 6); arena.y = Math.min(Math.max(arena.y + hy * 4, 6), AH - 6); }
+  arena.trail.push([arena.x, arena.y]); if (arena.trail.length > 14) arena.trail.shift();
+  if (d.fire && !arena.shell) arena.shell = [arena.x, arena.y, hx, hy];
+  if (arena.shell) { const s = arena.shell; s[0] += s[2] * 12; s[1] += s[3] * 12; if (s[0] < 0 || s[0] > AW || s[1] < 0 || s[1] > AH) arena.shell = null; }
+}
+function drawArena() {
+  const dpr = window.devicePixelRatio || 1, w = acv.clientWidth, h = acv.clientHeight, k = w / AW;
+  if (acv.width !== Math.round(w * dpr)) { acv.width = Math.round(w * dpr); acv.height = Math.round(h * dpr); }
+  actx.setTransform(dpr * k, 0, 0, dpr * k, 0, 0); actx.clearRect(0, 0, AW, AH);
+  const css = getComputedStyle(document.documentElement);
+  actx.lineCap = "round"; actx.lineJoin = "round";
+  actx.strokeStyle = css.getPropertyValue("--gfp"); actx.lineWidth = 5; actx.beginPath();     // the body follows the head's path
+  arena.trail.forEach(([x, y], i) => i ? actx.lineTo(x, y) : actx.moveTo(x, y)); actx.stroke();
+  const [hx, hy] = HEAD[arena.h];
+  actx.fillStyle = css.getPropertyValue("--ink"); actx.beginPath(); actx.arc(arena.x + hx * 2, arena.y + hy * 2, 3.2, 0, 7); actx.fill();
+  if (arena.shell) { actx.fillStyle = css.getPropertyValue("--alert"); actx.beginPath(); actx.arc(arena.shell[0], arena.shell[1], 2.5, 0, 7); actx.fill(); }
+}
+
+// ---------- playground mode: food and up to two predators in the arena; the senses are computed from the world exactly
+// as in the game page (play.js), each worm's choices move it. A second worm with another brain can share the arena.
+// A bite or a shell hit never kills: it adds pain (strong touch on the side that was hit) for a few steps, the worm
+// blinks invulnerable and that predator goes away to a new random spot.
+// Predators appear at random spots (2026-11-03, the user asked for random spots instead of the four corners, never colliding
+// with a worm): at least SAFE px from every worm (city block) and not on top of another predator.
+let mode = "env", player = null;
+const EW = 236, EH = 192, HALF = 6, NOWALLS = new Uint8Array(EW * EH), MAX_PREDS = 2;
+const DXY = { 0: [0, 0], 1: [0, -1], 3: [1, 0], 5: [0, 1], 7: [-1, 0], 2: [1, -1], 4: [1, 1], 6: [-1, 1], 8: [-1, -1] };
+const HEADS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+const CORNERS = [[HALF + 2, HALF + 2], [EW - HALF - 2, HALF + 2], [HALF + 2, EH - HALF - 2], [EW - HALF - 2, EH - HALF - 2]];
+const env = { worms: [], foods: [], preds: [] };
+const hitBox = (a, b, r = HALF + 1) => Math.abs(a[0] - b[0]) <= r && Math.abs(a[1] - b[1]) <= r;
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+const dist = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+function envParams(key) {
+  return key === "naive" ? { flags: { NOXIOUS_OLD: false, FIRE_GATE: false, PRED_SPLIT: false, SHELL_OLD: true } } : DATA.params[key];
+}
+const cmpSel = document.getElementById("cmpSel");
+function showBrainCard() {
+  const c = document.getElementById("brainCard");
+  c.textContent = BRAIN_DESC[sel.value] || "";
+  c.style.setProperty("--worm", `var(${WORM_COLOR[sel.value] || "--worm-n"})`);
+  const c2 = document.getElementById("cmpCard");
+  c2.textContent = cmpSel.value ? BRAIN_DESC[cmpSel.value] || "" : "";
+  c2.hidden = !cmpSel.value;
+  c2.style.setProperty("--worm", `var(${WORM_COLOR[cmpSel.value] || "--worm-n"})`);
+}
+function newWorm(key, start) {
+  const p = envParams(key), pl = new WormPlay.WormPlayerJS(base, p);
+  if (p.free) addFreeMaps(pl.brain, p);
+  return { key, player: pl, p: start.slice(), face: [0, -1], shell: null, armor: 0, pain: null, painLeft: 0, trail: [], path: [start.slice()], eaten: 0, kills: 0, caught: 0 };
+}
+// worm 1 is the one on the brain map, meters and sense chips
+function makeWorms(start) {
+  const sil = brain ? [...brain.silenced] : [];
+  const two = !!cmpSel.value, s0 = start || [EW / 2, EH / 2];
+  env.worms = [newWorm(sel.value, two ? [s0[0] - 30, s0[1]] : s0)];
+  if (two) env.worms.push(newWorm(cmpSel.value, [s0[0] + 30, s0[1]]));
+  player = env.worms[0].player; brain = player.brain;
+  for (const i of sil) brain.silence(i);
+  stepNo = 0; hist = [];
+}
+function resetEnv(keepWorld) {
+  if (!keepWorld) Object.assign(env, { foods: [], preds: [] });
+  makeWorms();
+}
+function scatterFood(n) {
+  for (let k = 0; k < n; k++) {
+    const f = [12 + Math.random() * (EW - 24), 12 + Math.random() * (EH - 24)];
+    if (!env.worms.some(w => hitBox(f, w.p, 14))) env.foods.push(f);
+  }
+}
+function farCorner() {
+  const score = c => Math.min(...env.worms.map(w => dist(c, w.p)));
+  return CORNERS.slice().sort((a, b) => score(b) - score(a))[env.preds.length % 2].slice();
+}
+const SAFE = 60, STICKY = 0.1;
+function randomSpot(self) {
+  for (let k = 0; k < 200; k++) {
+    const c = [HALF + 2 + Math.random() * (EW - 2 * HALF - 4), HALF + 2 + Math.random() * (EH - 2 * HALF - 4)];
+    if (env.worms.every(w => dist(c, w.p) >= SAFE) && env.preds.every(e => e === self || !hitBox(c, e.p, 14))) return c;
+  }
+  return farCorner();                                    // a crowded arena: fall back to the farthest corner
+}
+function spawnPred() { if (env.preds.length < MAX_PREDS) env.preds.push({ p: randomSpot(null), face: HEADS[Math.floor(Math.random() * 4)], shell: null, cd: 30 }); }
+function sendBack(e) { e.p = randomSpot(e); e.shell = null; e.cd = 30; }
+function hurt(w, src, e) {
+  w.caught++; w.armor = 25;
+  const [hx, hy] = HEADS[w.player.heading], dx = src[0] - w.p[0], dy = src[1] - w.p[1];
+  const fwd = dx * hx + dy * hy, side = dx * hy - dy * hx;
+  const key = Math.abs(fwd) >= Math.abs(side) ? (fwd > 0 ? "touch_front" : "touch_back") : (side > 0 ? "touch_L" : "touch_R");
+  w.pain = { [key]: 2.0 }; w.painLeft = 4;
+  sendBack(e);
+}
+function predStep(e) {
+  const target = env.worms.slice().sort((a, b) => dist(a.p, e.p) - dist(b.p, e.p))[0], [px, py] = target.p;   // chase the nearest worm
+  let fx, fy;
+  if (Math.random() < 0.2) [fx, fy] = HEADS[Math.floor(Math.random() * 4)];
+  else if (Math.abs(px - e.p[0]) > Math.abs(py - e.p[1])) [fx, fy] = [px > e.p[0] ? 1 : -1, 0];
+  else [fx, fy] = [0, py > e.p[1] ? 1 : -1];
+  e.face = [fx, fy];
+  e.p[0] = clamp(e.p[0] + fx * 2, HALF, EW - HALF); e.p[1] = clamp(e.p[1] + fy * 2, HALF, EH - HALF);
+  e.cd = Math.max(0, e.cd - 1);
+  if (!e.shell && e.cd === 0)
+    for (const w of env.worms) {
+      const dx = w.p[0] - e.p[0], dy = w.p[1] - e.p[1];
+      const dir = HEADS.find(([ax, ay]) => (ax && Math.abs(dy) < 6 && dx * ax > 0) || (ay && Math.abs(dx) < 6 && dy * ay > 0));
+      if (dir) { e.face = dir; e.shell = [e.p[0], e.p[1], dir[0], dir[1]]; e.cd = 40; break; }
+    }
+  if (e.shell) { const s = e.shell; s[0] += s[2] * 6; s[1] += s[3] * 6; if (s[0] < 0 || s[0] >= EW || s[1] < 0 || s[1] >= EH) e.shell = null; }
+}
+function wormStep(w) {
+  const others = env.worms.filter(x => x !== w);
+  const o = { player: w.p.slice(), enemies: env.preds.map(e => e.p.slice()), mines: env.foods.map(f => f.slice()),
+              walls: NOWALLS, fw: EW, fh: EH, shells: env.preds.filter(e => e.shell).map(e => e.shell.slice(0, 2)),
+              score: w.eaten * 50, reserve: 1000 - w.caught };      // for the memory brain: eating = +1, being caught = -1
+  w.player.extra = w.painLeft > 0 ? w.pain : null; if (w.painLeft > 0) w.painLeft--;
+  // 10 % sticky actions, exactly as in training (pg_evolve.play): the worm's choice is sometimes replaced by its last action,
+  // like the real game's late inputs. Without it the deterministic brain could loop forever in a top corner (2026-11-04).
+  let a = w.player.act(o);
+  if (w.last && Math.random() < STICKY) a = w.last;
+  w.last = a;
+  const [dir, fire] = a;
+  const [dx, dy] = DXY[dir];
+  if (dx || dy) w.face = dx && dy ? [dx, 0] : [dx, dy];
+  w.p = [clamp(w.p[0] + dx * 4, HALF, EW - HALF), clamp(w.p[1] + dy * 4, HALF, EH - HALF)];
+  w.trail.push(w.p.slice()); if (w.trail.length > 14) w.trail.shift();
+  if (env.board) w.path.push(w.p.slice());                  // on the heaven board, the whole route is drawn faintly
+  if (fire && !w.shell) w.shell = [w.p[0], w.p[1], w.face[0], w.face[1]];
+  env.foods = env.foods.filter(f => { const eat = hitBox(f, w.p); if (eat) w.eaten++; return !eat; });
+  if (w.shell) {
+    const sh = w.shell; sh[0] += sh[2] * 6; sh[1] += sh[3] * 6;
+    const e = env.preds.find(e => hitBox(sh, e.p));
+    if (sh[0] < 0 || sh[0] >= EW || sh[1] < 0 || sh[1] >= EH) w.shell = null;
+    else if (e) { w.kills++; w.shell = null; sendBack(e); }
+  }
+  void others;
+}
+function envTick() {
+  if (env.board) { env.board.t++; if (!env.foods.length && env.board.done === null) env.board.done = env.board.t; }
+  for (const w of env.worms) wormStep(w);
+  for (const e of env.preds) predStep(e);
+  for (const w of env.worms) {
+    w.armor = Math.max(0, w.armor - 1);
+    if (w.armor) continue;
+    for (const e of env.preds) {
+      if (hitBox(w.p, e.p, 2 * HALF)) { hurt(w, e.p, e); break; }
+      if (e.shell && hitBox(w.p, e.shell)) { hurt(w, e.shell, e); break; }
+    }
+  }
+  const [s, m] = env.worms[0].player.log;
+  active = new Set(Object.keys(s).filter(k => s[k] > 0.05)); syncChips();
+  return [s, m];
+}
+function drawEnv() {
+  const dpr = window.devicePixelRatio || 1, w = acv.clientWidth, h = acv.clientHeight, k = w / EW;
+  if (acv.width !== Math.round(w * dpr)) { acv.width = Math.round(w * dpr); acv.height = Math.round(h * dpr); }
+  actx.setTransform(dpr * k, 0, 0, dpr * k, 0, 0); actx.clearRect(0, 0, EW, EH);
+  const css = getComputedStyle(document.documentElement), C = n => css.getPropertyValue(n);
+  actx.fillStyle = C("--gfp"); actx.globalAlpha = .45;
+  for (const [x, y] of env.foods) actx.fillRect(x - 3, y - 3, 6, 6);
+  actx.globalAlpha = 1;
+  for (const e of env.preds) {
+    const [x, y] = e.p, [fx, fy] = e.face;
+    actx.fillStyle = C("--alert"); actx.fillRect(x - HALF, y - HALF, 2 * HALF + 1, 2 * HALF + 1);
+    actx.strokeStyle = C("--alert"); actx.lineWidth = 2; actx.beginPath(); actx.moveTo(x, y); actx.lineTo(x + fx * 10, y + fy * 10); actx.stroke();
+    if (e.shell) { actx.beginPath(); actx.arc(e.shell[0], e.shell[1], 2.2, 0, 7); actx.fill(); }
+  }
+  actx.lineCap = "round"; actx.lineJoin = "round";
+  if (env.board) for (const wm of env.worms) {              // the route so far: shows whether the worm follows a learned path
+    actx.strokeStyle = C(WORM_COLOR[wm.key] || "--worm-n"); actx.globalAlpha = .28; actx.lineWidth = 1.5; actx.beginPath();
+    wm.path.forEach(([x, y], i) => i ? actx.lineTo(x, y) : actx.moveTo(x, y)); actx.stroke(); actx.globalAlpha = 1;
+  }
+  for (const wm of env.worms) {
+    const col = C(WORM_COLOR[wm.key] || "--worm-n");
+    actx.globalAlpha = wm.armor > 0 && stepNo % 2 ? .3 : 1;
+    actx.strokeStyle = col; actx.lineWidth = 5; actx.beginPath();
+    wm.trail.forEach(([x, y], i) => i ? actx.lineTo(x, y) : actx.moveTo(x, y)); actx.stroke();
+    actx.fillStyle = C("--ink"); actx.beginPath(); actx.arc(wm.p[0] + wm.face[0] * 2, wm.p[1] + wm.face[1] * 2, 3.2, 0, 7); actx.fill();
+    actx.globalAlpha = 1;
+    if (wm.painLeft > 0) { actx.strokeStyle = C("--alert"); actx.lineWidth = 1.5; actx.beginPath(); actx.arc(wm.p[0], wm.p[1], 9, 0, 7); actx.stroke(); }
+    if (wm.shell) { actx.fillStyle = col; actx.beginPath(); actx.arc(wm.shell[0], wm.shell[1], 2.4, 0, 7); actx.fill(); }
+  }
+  document.getElementById("envStats").innerHTML = env.worms.map(wm =>
+    `<span style="color:var(${WORM_COLOR[wm.key] || "--worm-n"})">●</span> ${BRAIN_NAME[wm.key] || ""}: 먹은 먹이 ${wm.eaten} · 맞힌 포식자 ${wm.kills} · 잡힐 뻔 ${wm.caught}`).join("<br>") +
+    `<br>남은 먹이 ${env.foods.length} · 포식자 ${env.preds.length}` +
+    (env.board ? `<br>천국 먹이판: ${env.board.done === null ? `${env.board.t}걸음째` : `${env.board.done}걸음에 다 먹음`}` : "");
+}
+acv.addEventListener("click", e => {
+  if (mode !== "env") return;
+  const r = acv.getBoundingClientRect(), k = r.width / EW;
+  env.foods.push([clamp((e.clientX - r.left) / k, 4, EW - 4), clamp((e.clientY - r.top) / k, 4, EH - 4)]);
+  drawEnv();
+});
+const NOTE = { env: "놀이터: 감각은 꼬마선충이 있는 자리에서 실제 게임과 같은 방식으로 계산돼요. 왼쪽의 감각 표시와 뇌 지도는 첫 번째 꼬마선충이에요.",
+               direct: "직접 자극: 판 위의 꼬마선충은 뇌가 고른 행동대로 움직여요. 감각은 왼쪽에서 켠 그대로 들어가고, 판 위의 위치와는 상관없어요." };
+function setMode(m) {
+  mode = m;
+  document.getElementById("envCtl").hidden = m !== "env";
+  document.getElementById("arenaNote").textContent = NOTE[m];
+  document.getElementById("envStats").hidden = m !== "env";
+  active = new Set(); pulse.clear();
+  if (m === "env") { resetEnv(); scatterFood(14); }
+  else { makeBrain(sel.value); resetArena(); }
+  drawMap();
+}
+document.getElementById("foodBtn").onclick = () => scatterFood(10);
+document.getElementById("predBtn").onclick = () => spawnPred();
+document.getElementById("predOff").onclick = () => { env.preds = []; };
+document.getElementById("clearEnv").onclick = () => { env.foods = []; env.preds = []; env.board = null; makeWorms(); };
+// heaven board (2026-11-03): the playground's 76 foods where the real game has them, no predator, worms from the game's
+// start point; counts the steps until everything is eaten (the heaven race; a planner needs ~300-345)
+let LAYOUT = null;
+document.getElementById("heavenBtn").onclick = async () => {
+  LAYOUT = LAYOUT || await (await fetch("models/heaven_layout.json")).json();
+  env.preds = []; env.foods = LAYOUT.foods.map(f => f.slice()); env.board = { t: 0, done: null };
+  makeWorms(LAYOUT.start); drawMap();
+};
+cmpSel.onchange = () => { showBrainCard(); if (mode === "env") { makeWorms(); drawMap(); } };
+
+function showVerdict(d) {
+  // symbols first (body-relative: ↑ forward, ↓ back, ■ stay; ↺ turning left, ↻ turning right; ✸ fire), words after
+  const parts = [MOVE_KO[d.move]], sym = [{ forward: "↑", back: "↓", stay: "■" }[d.move]];
+  if (d.turn !== "none") { parts.push(d.turn === "left" ? "왼쪽" : "오른쪽"); sym.push(d.turn === "left" ? "↺" : "↻"); }
+  if (d.fire) sym.push(`<span class="fire">✸</span>`);
+  document.getElementById("verdict").innerHTML = `<span class="sym">${sym.join(" ")}</span> <span class="words">` +
+    parts.join(" · ") + (d.fire ? ` · <span class="fire">발사</span>` : "") + "</span>";
+  document.getElementById("stepNo").textContent = `${stepNo}걸음`;
+}
+
+// ---------- loop
+function tick() {
+  if (mode === "env") {
+    const [s, m] = envTick(); stepNo++;
+    const d = brain.decide(m);
+    hist.push(m.spit); if (hist.length > 100) hist.shift();
+    setMeter("move", d.move_v, d.th.move, true); setMeter("turn", d.turn_v, d.th.turn, true); setMeter("spit", d.spit_v, d.th.fire, false);
+    showVerdict(d);
+    for (let i = 0; i < glows.length; i++) glows[i].setAttribute("opacity", Math.min(1, brain.v[i] * 1.6).toFixed(2));
+    drawHist(d.th.fire); drawEnv(); showInfo();
+    return;
+  }
+  for (const [k, n] of [...pulse]) { if (n <= 1) { pulse.delete(k); active.delete(k); syncChips(); } else pulse.set(k, n - 1); }
+  const inp = {}; for (const k of active) inp[k] = 1.0;
+  const m = brain.step(inp); stepNo++;
+  const d = brain.decide(m);
+  hist.push(m.spit); if (hist.length > 100) hist.shift();
+  setMeter("move", d.move_v, d.th.move, true);
+  setMeter("turn", d.turn_v, d.th.turn, true);
+  setMeter("spit", d.spit_v, d.th.fire, false);
+  showVerdict(d);
+  for (let i = 0; i < glows.length; i++) glows[i].setAttribute("opacity", Math.min(1, brain.v[i] * 1.6).toFixed(2));
+  drawHist(d.th.fire);
+  moveArena(d); drawArena();
+  showInfo();
+}
+setInterval(() => { if (running && ready) tick(); }, 120);
+
+document.getElementById("play").onclick = e => { running = !running; e.target.textContent = running ? "일시정지" : "계속"; };
+document.getElementById("reset").onclick = () => { brain.reset(); stepNo = 0; hist = []; resetArena(); if (mode === "env") makeWorms(); };
+document.getElementById("clearSil").onclick = () => { for (const i of [...brain.silenced]) brain.silence(i, false); drawMap(); };
+const PRESETS = {
+  aim: { senses: ["mouth_noxious", "pred_front"], silence: [] },
+  aimI5: { senses: ["mouth_noxious", "pred_front"], silence: ["I5"] },
+  shell: { senses: ["touch_front"], silence: [] },
+  food: { senses: ["smell_up"], silence: [] },
+};
+document.querySelectorAll("[data-preset]").forEach(b => b.onclick = () => {
+  const p = PRESETS[b.dataset.preset];
+  for (const i of [...brain.silenced]) brain.silence(i, false);
+  for (const nm of p.silence) brain.silence(brain.idx[nm]);
+  active = new Set(p.senses); pulse.clear(); if (shortMode()) for (const k of p.senses) pulse.set(k, PULSE);
+  brain.reset(); stepNo = 0; hist = []; resetArena();
+  drawMap(); picked = p.silence.length ? brain.idx[p.silence[0]] : brain.idx["M1"]; showInfo();
+});
+
+let lastCols = COLS;
+window.addEventListener("resize", () => { const c = svg.clientWidth < 600 ? 14 : 34; if (c !== lastCols) { lastCols = c; drawMap(); } });
+loadBrains().then(() => {
+  makeBrain(sel.value); drawMap();
+  setMode("env"); showBrainCard();
+  ready = true;
+  for (let k = 0; k < 20; k++) tick();
+});
+</script>
+</body>
+</html>

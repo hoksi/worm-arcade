@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Worm Arcade · Super Tank</title>
+<style>
+  :root { --bg: #0b0f0d; --panel: #141b17; --line: #26332c; --ink: #e2ebe5; --muted: #8fa198; --gfp: #39e07f; --alert: #ff6b7f; --input: #6fb0ff; color-scheme: dark; }
+  body { background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, "Apple SD Gothic Neo", sans-serif; margin: 0; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+  @media (max-width: 760px) { .wrap { grid-template-columns: minmax(0, 1fr); } }
+  .intro { grid-column: 1 / -1; display: grid; gap: 6px; }
+  h1 { margin: 0; font-size: 1.3rem; }
+  .intro p, .credits { margin: 0; color: var(--muted); }
+  .intro p.lead { color: var(--ink); font-size: 1.05rem; }
+  .links { display: flex; gap: 14px; align-items: baseline; white-space: nowrap; }
+  .links a { color: var(--input); font-size: .9rem; }
+  .credits { grid-column: 1 / -1; font-size: .8rem; display: grid; gap: 4px; }
+  .credits a, a.lang { color: var(--input); }
+  #view { width: 384px; height: 480px; max-width: 100%; image-rendering: pixelated; background: #000; border: 1px solid var(--line); }
+  .stage { display: grid; gap: 10px; justify-items: center; min-width: 0; grid-template-columns: minmax(0, 1fr); }
+  #demo { width: 384px; height: 480px; max-width: 100%; object-fit: fill; image-rendering: pixelated; background: #000; border: 1px solid var(--line); display: block; }
+  @media (max-width: 760px) { #demo { width: 100%; height: auto; aspect-ratio: 4 / 5; } }
+  .cap { font-size: .8rem; color: var(--muted); margin: 0; }
+  .drop { border: 2px dashed var(--line); border-radius: 8px; padding: 10px 12px; font-size: .88rem; display: grid; gap: 6px; }
+  .drop p { margin: 0; }
+  .drop.over { border-color: var(--gfp); background: rgba(57, 224, 127, .08); }
+  .drop .row a, .filebtn { border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; color: var(--ink); text-decoration: none; cursor: pointer; }
+  .drop .err { color: var(--alert); }
+  @media (max-width: 760px) { #view { width: 100%; height: auto; aspect-ratio: 4 / 5; } }
+  .pad { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 384px; user-select: none; -webkit-user-select: none; touch-action: none; }
+  .dpad { display: grid; grid-template: repeat(3, 56px) / repeat(3, 56px); }
+  .dpad button, .firebtn { touch-action: none; font-size: 1.3rem; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); color: #7fd0ff; }
+  .dpad .up { grid-area: 1 / 2; } .dpad .left { grid-area: 2 / 1; } .dpad .right { grid-area: 2 / 3; } .dpad .down { grid-area: 3 / 2; }
+  .firebtn { width: 96px; height: 96px; border-radius: 50%; font-size: 1.1rem; font-weight: 700; color: #ff6b7f; }
+  .pad button.on { background: #24384a; }
+  #coop.on { background: #7fd0ff; color: #0b0f0d; }
+  #canvas { position: fixed; left: -9999px; top: 0; width: 256px; height: 256px; }   /* MAME draws here (raw, unrotated) */
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 10px; min-width: 0; }
+  .label { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .big { font-size: 1.4rem; font-weight: 700; }
+  .fire { color: var(--alert); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; font-size: .82rem; color: var(--muted); }
+  .chip.on { background: var(--input); border-color: var(--input); color: #fff; }
+  button, select, input { font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; }
+  select, option { background: var(--panel); color: var(--ink); }
+  button, .drop .row a, .filebtn { background: #34483e; border-color: #5c7a6a; color: #fff; font-weight: 600; }   /* buttons stand out from the panel */
+  button:hover, .drop .row a:hover, .filebtn:hover { background: #41594d; border-color: var(--gfp); }
+  [hidden] { display: none !important; }   /* hidden must win over display: grid/flex rules (the ROM box stayed visible) */
+  .screen { width: 100%; max-width: 384px; }
+  .screen #view, .screen #demo { width: 100%; }
+  .badge { padding: 3px 9px; border-radius: 999px; font-size: .78rem; font-weight: 700; letter-spacing: .03em; background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
+  .badge.live { background: var(--alert); border-color: var(--alert); color: #fff; }
+  .badge.live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #fff; margin-right: 6px; vertical-align: 1px; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .badge.wait { color: var(--muted); }
+  #liveBox { animation: fadein .6s ease-out; }
+  .panel .drop { margin: 0; }
+  @keyframes fadein { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+  button { cursor: pointer; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
+  #brainSel { flex: 1 1 12rem; min-width: 0; max-width: 100%; }
+  pre { margin: 0; color: var(--muted); font: 12px/1.4 ui-monospace, monospace; white-space: pre-wrap; max-height: 120px; overflow: auto; }
+  .num { font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <div class="row" style="justify-content:space-between"><h1>Worm Arcade: Super Tank</h1><nav class="links"><a href="lab.html">Worm Lab</a><a href="https://github.com/hoksi/worm-arcade" target="_blank" rel="noopener">GitHub</a><a class="lang" href="index.ko.html" hreflang="ko">한국어</a></nav></div>
+    <p class="lead">The real wiring diagram of the worm <i>C. elegans</i> plays the 1981 arcade game Super Tank. The wiring is unchanged; evolution trained only a few values per neuron.</p>
+    <p>Without the ROM file you see a recording; choose the ROM and it plays live in your browser. In the <a href="lab.html">Worm Lab</a> you can put out food and predators and watch how it moves.</p>
+  </header>
+  <div class="stage">
+    <div class="screen" id="demoBox" hidden><video id="demo" data-src="media/play.mp4" poster="media/poster.png" muted loop playsinline></video></div>
+    <div class="screen" id="liveBox" hidden><canvas id="view" width="256" height="256"></canvas></div>
+    <div class="pad" id="pad" hidden aria-label="Player 2 controls">
+      <div class="dpad">
+        <button class="up" data-k="p2up" aria-label="Up">▲</button>
+        <button class="left" data-k="p2left" aria-label="Left">◀</button>
+        <button class="right" data-k="p2right" aria-label="Right">▶</button>
+        <button class="down" data-k="p2down" aria-label="Down">▼</button>
+      </div>
+      <button class="firebtn" data-k="p2fire">FIRE</button>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="row"><span class="label">Status</span><span class="badge wait" id="status">loading…</span></div>
+    <div class="drop" id="drop" hidden>
+      <p><b>Run it yourself</b> — download the Super Tank ROM (supertnk.zip) from mamedev.org, then choose it.</p>
+      <p class="row"><a href="https://www.mamedev.org/roms/supertnk/" target="_blank" rel="noopener">Get the ROM (mamedev.org)</a><label class="filebtn">Choose ROM file<input type="file" id="romFile" accept=".zip,application/zip" hidden></label></p>
+      <p class="cap">The file is used only inside this browser and is never uploaded. It is kept in this browser so you do not need to choose it again next time.</p>
+      <p class="err" id="romErr" hidden></p>
+    </div>
+    <div class="row">
+      <span class="label">Model</span>
+      <select id="brainSel"></select>
+    </div>
+    <div class="row"><span class="label">Now</span><span class="big" id="verdict">waiting</span></div>
+    <div class="row num" id="nums"></div>
+    <div><div class="label">Active senses</div><div class="chips" id="senses"></div></div>
+    <div class="row">
+      <button id="restart" hidden>New game</button>
+      <button id="forgetRom" hidden>Forget saved ROM</button>
+    </div>
+    <div class="label">Log</div>
+    <pre id="log"></pre>
+  </div>
+</div>
+<footer class="wrap"><div class="credits">
+  <p>Super Tank © 1981 Video Games GmbH. The ROM is not included in this page. The ROM images were made available for free, non-commercial use by Reinhard Stompe, founder of Video Games GmbH; please download them yourself (<a href="https://www.mamedev.org/roms/supertnk/" target="_blank" rel="noopener">mamedev.org</a>). This is a non-commercial personal experiment; it will be taken down at the rights holder's request.</p>
+  <p>Emulator: <a href="https://github.com/mamedev/mame/tree/mame0285" target="_blank" rel="noopener">MAME 0.285</a> (GPL-2.0+), built with Emscripten with only the Super Tank driver. Changes: commented out <code>struct _IO_FILE {};</code> in src/osd/sdl/sdlprefix.h (clashes with newer Emscripten) and added the <code>-s EXCEPTION_CATCHING_ALLOWED</code> list at link time.</p>
+  <p>Connectome: OpenWorm c302 <code>herm_full_edgelist.csv</code> (Cook et al. 2019, MIT). Worm brain and screen reader: <code>brain.js</code>, <code>play.js</code>. Source: <a href="https://github.com/hoksi/worm-arcade" target="_blank" rel="noopener">github.com/hoksi/worm-arcade</a> (MIT).</p>
+</div></footer>
+<canvas id="canvas" width="256" height="256"></canvas>
+
+<script src="brain.js"></script>
+<script src="play.js"></script>
+<script>
+// keep MAME's frames readable after drawing (the canvas is WebGL)
+const _gc = HTMLCanvasElement.prototype.getContext;
+HTMLCanvasElement.prototype.getContext = function (t, o) { return _gc.call(this, t, Object.assign({}, o || {}, { preserveDrawingBuffer: true })); };
+// MAME (SDL) renames the browser tab to "Super Tank [supertnk] - MAME ..."; keep the page's own title
+const PAGE_TITLE = document.title;
+Object.defineProperty(document, "title", { get: () => PAGE_TITLE, set: () => {} });
+const $ = id => document.getElementById(id);
+const log = t => { const el = $("log"); el.textContent = (t + "\n" + el.textContent).slice(0, 4000); };
+const KO = { smell_up: "odour rising", smell_down: "odour falling", pred_front: "enemy ahead", pred_back: "enemy behind", pred_L: "enemy left",
+  pred_R: "enemy right", touch_front: "touch front", touch_back: "touch back", touch_L: "touch left", touch_R: "touch right", nose: "nose on wall",
+  mouth_food: "food at mouth", mouth_noxious: "enemy straight ahead (I2)" };
+const KEYS = { coin: ['Digit5', '5', 53], start: ['Digit1', '1', 49], up: ['ArrowUp', 'ArrowUp', 38], down: ['ArrowDown', 'ArrowDown', 40],
+  left: ['ArrowLeft', 'ArrowLeft', 37], right: ['ArrowRight', 'ArrowRight', 39], fire: ['ControlLeft', 'Control', 17],
+  // two players (2026-11-03): MAME's default player-2 keys, 2-player start, and F3 = soft reset
+  start2: ['Digit2', '2', 50], reset: ['F3', 'F3', 114], p2up: ['KeyR', 'r', 82], p2down: ['KeyF', 'f', 70], p2left: ['KeyD', 'd', 68],
+  p2right: ['KeyG', 'g', 71], p2fire: ['KeyA', 'a', 65] };
+function key(name, down) {
+  const [code, k, kc] = KEYS[name];
+  const e = new KeyboardEvent(down ? 'keydown' : 'keyup', { code, key: k, bubbles: true, cancelable: true });
+  Object.defineProperty(e, 'keyCode', { get: () => kc }); Object.defineProperty(e, 'which', { get: () => kc });
+  window.dispatchEvent(e);
+}
+let held = new Set();
+function hold(names) {
+  const want = new Set(names);
+  for (const n of held) if (!want.has(n)) key(n, false);
+  for (const n of want) if (!held.has(n)) key(n, true);
+  held = want;
+}
+const tap = (name, ms = 150) => new Promise(r => { key(name, true); setTimeout(() => { key(name, false); setTimeout(r, 400); }, ms); });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let coop = false;
+// 1P: the worm alone. 2P (co-op): soft-reset MAME, two coins, 2-player start; the worm keeps player 1, a person plays 2
+async function newGame() {
+  hold([]);
+  if (!coop) { await tap("coin"); await tap("start"); log("coin in, start"); return; }
+  const was = running; running = false;
+  await tap("reset"); await sleep(5000);
+  await tap("coin"); await tap("coin"); await tap("start2");
+  running = was; log("two players: the worm is player 1, you are player 2");
+}
+function setCoop(on) {
+  coop = on;
+  $("coop").classList.toggle("on", on); $("coop").textContent = on ? "Worm alone" : "Play along (2P)";
+  $("pad").hidden = !on;
+  newGame();
+}
+// on-screen pad for player 2: press and hold, several fingers at once
+document.querySelectorAll("#pad [data-k]").forEach(b => {
+  const k = b.dataset.k, up = () => { if (b.classList.contains("on")) { b.classList.remove("on"); key(k, false); } };
+  b.addEventListener("pointerdown", e => { e.preventDefault(); b.setPointerCapture(e.pointerId); b.classList.add("on"); key(k, true); });
+  for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(ev, up);
+  b.addEventListener("contextmenu", e => e.preventDefault());
+});
+
+// ---- worm
+let base, player, obs = new WormPlay.Observer(), running = true, steps = 0, fires = 0, noPlayer = 0, booted = false;
+const params = {};
+async function loadBrain(run) {
+  if (!params[run]) params[run] = await (await fetch(`models/${run}.json`)).json();
+  const sil = player ? [...player.brain.silenced] : [];
+  player = new WormPlay.WormPlayerJS(base, params[run]);
+  for (const i of sil) player.brain.silence(i);
+  obs = new WormPlay.Observer(); steps = 0; fires = 0;
+  log(`model: ${NAME[run] || run} (generation ${params[run].gen})`);
+}
+
+// ---- screen: grab MAME's raw frame, show it rotated like the arcade monitor
+const grabC = document.createElement("canvas"); grabC.width = 256; grabC.height = 256;
+const gctx = grabC.getContext("2d", { willReadFrequently: true });
+const view = $("view"), vctx = view.getContext("2d");
+function frame() {
+  gctx.drawImage($("canvas"), 0, 0, 256, 256);
+  vctx.save(); vctx.translate(256, 0); vctx.rotate(Math.PI / 2); vctx.drawImage(grabC, 0, 0); vctx.restore();   // clockwise
+  return gctx.getImageData(0, 0, 256, 256).data;
+}
+
+let tick = 0;
+function loop() {
+  requestAnimationFrame(loop);
+  if (!booted || ++tick % 4) return;                        // a decision every 4 frames, like training
+  const data = frame();
+  if (!running || !player) return;
+  const o = obs.observe(WormPlay.parse(data, 256, 256, false));
+  const p2 = coop ? WormPlay.findP2(data, 256, 256, false) : [];
+  o.enemies = o.enemies.concat(p2);                         // two players: player 2 is felt like a predator (bumping kills both)
+  if (!o.player) {
+    hold([]); player.act(o);
+    if (++noPlayer === 15 * 6) { noPlayer = 0; newGame(); }   // ~6 s without a tank: game over -> coin + start
+    $("verdict").textContent = "no tank (explosion, respawn or game over)";
+    return;
+  }
+  noPlayer = 0;
+  const [d, fire] = player.act(o);
+  hold(WormPlay.DIRS[d].concat(fire ? ["fire"] : []));
+  steps++; fires += fire ? 1 : 0;
+  const [s, m] = player.log;
+  const ARROW = { 0: "stay", 1: "↑", 2: "↗", 3: "→", 4: "↘", 5: "↓", 6: "↙", 7: "←", 8: "↖" };
+  $("verdict").innerHTML = ARROW[d] + (fire ? ' <span class="fire">fire!</span>' : "");
+  $("nums").textContent = `steps ${steps} · shots ${fires} · enemies ${o.enemies.length - p2.length}${p2.length ? " · player 2 seen" : ""} · shells ${o.shells.length} · active neurons ${Math.round(100 * player.brain.v.filter(x => x > 0.05).length / player.brain.n)}%`;
+  $("senses").innerHTML = Object.keys(KO).map(k => `<span class="chip${(s[k] || 0) > 0.05 ? " on" : ""}">${KO[k]}</span>`).join("");
+}
+
+$("restart").onclick = () => newGame();
+$("brainSel").onchange = e => loadBrain(e.target.value);
+
+// ---- the ROM: dropped or picked by the visitor, kept only in this browser
+function romDB(op, data) {
+  return new Promise(res => {
+    try {
+      const rq = indexedDB.open("worm-arcade", 1);
+      rq.onupgradeneeded = () => rq.result.createObjectStore("roms");
+      rq.onerror = () => res(null);
+      rq.onsuccess = () => {
+        try {
+          const tx = rq.result.transaction("roms", op === "get" ? "readonly" : "readwrite"), st = tx.objectStore("roms");
+          const r = op === "get" ? st.get("supertnk") : op === "put" ? st.put(data, "supertnk") : st.delete("supertnk");
+          r.onsuccess = () => res(op === "get" ? r.result || null : true); r.onerror = () => res(null);
+        } catch (e) { res(null); }
+      };
+    } catch (e) { res(null); }
+  });
+}
+function looksLikeROM(buf) {                       // a zip whose file names include Super Tank's chips (supertnk.3d, ...)
+  const u = new Uint8Array(buf); if (u.length < 4 || u[0] !== 0x50 || u[1] !== 0x4b) return false;
+  return new TextDecoder("latin1").decode(u).includes("supertnk.");
+}
+async function useFile(f) {
+  const buf = await f.arrayBuffer();
+  if (!looksLikeROM(buf)) { $("romErr").textContent = "This does not look like the Super Tank ROM (supertnk.zip)."; $("romErr").hidden = false; return; }
+  await romDB("put", buf); startMAME(buf);
+}
+function armDrop() {                            // no saved ROM: show the recording and the drop box
+  const d = $("drop"), v = $("demo");
+  $("demoBox").hidden = false; $("drop").hidden = false; v.src = v.dataset.src; v.play().catch(() => {});
+  setStatus("", "▶ Recording · one game the worm really played (4,150 points)");
+  for (const t of ["dragenter", "dragover"]) document.addEventListener(t, e => { e.preventDefault(); d.classList.add("over"); });
+  for (const t of ["dragleave", "drop"]) document.addEventListener(t, e => { e.preventDefault(); d.classList.remove("over"); });
+  document.addEventListener("drop", e => { const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) useFile(f); });
+  $("romFile").onchange = e => { const f = e.target.files[0]; if (f) useFile(f); };
+}
+let started = false;
+const NAME = {};                                  // model id -> colour name, for the log
+function setStatus(kind, text) { const b = $("status"); b.className = "badge " + kind; b.textContent = text; }
+function goLive() { setStatus("live", "LIVE · the worm is playing now"); }
+function startMAME(buf) {
+  if (started) return; started = true;
+  $("demoBox").hidden = true; $("drop").hidden = true; $("liveBox").hidden = false; $("restart").hidden = false; $("forgetRom").hidden = false; log("ROM found, starting MAME");
+  setStatus("wait", "Starting the game…");
+  if ($("demo").src) $("demo").pause();
+  window.Module = {
+    arguments: ["supertnk", "-rompath", "/roms", "-sound", "none", "-skip_gameinfo", "-norotate", "-video", "soft", "-window", "-nomax", "-nokeepaspect", "-resolution", "256x256"],
+    canvas: $("canvas"),
+    preRun: [() => { FS.mkdir("/roms"); FS.writeFile("/roms/supertnk.zip", new Uint8Array(buf)); }],
+    print: t => console.log(t), printErr: t => console.log("ERR " + t), onAbort: e => log("MAME stopped: " + e),
+    onRuntimeInitialized: () => { log("MAME ready"); setTimeout(async () => { booted = true; goLive(); await newGame(); }, 6000); },
+  };
+  const s = document.createElement("script"); s.src = "mame/supertnk.js"; document.body.appendChild(s);
+}
+$("forgetRom").onclick = async () => {              // remove the ROM, say so, then start over without it (2026-11-04)
+  await romDB("del"); alert("The saved ROM is removed. The page will reload."); location.reload();
+};
+
+(async () => {
+  base = await (await fetch("base.json")).json();
+  // the models, from models/index.json (the same list as the lab)
+  const index = await (await fetch("models/index.json")).json(), lang = document.documentElement.lang === "en" ? "en" : "ko";
+  for (const b of index) { $("brainSel").add(new Option(b[lang].label, b.id)); NAME[b.id] = b[lang].name; }   // every brain the lab has
+  await loadBrain($("brainSel").value);
+  // the ROM is not part of this page (2026-11-04): the visitor drops their own supertnk.zip, read here in the browser and
+  // never uploaded; it is kept in this browser's IndexedDB so a later visit starts at once
+  const cached = await romDB("get");
+  if (cached && looksLikeROM(cached)) startMAME(cached);
+  else armDrop();
+  requestAnimationFrame(loop);
+})();
+</script>

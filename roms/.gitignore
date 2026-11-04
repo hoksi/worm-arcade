@@ -1,0 +1,4 @@
+# ROM files are not part of this repository.
+# Put supertnk.zip here (download it from https://www.mamedev.org/roms/supertnk/).
+*
+!.gitignore

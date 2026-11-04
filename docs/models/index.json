@@ -1,0 +1,164 @@
+[
+ {
+  "id": "pgx_bfree_k200",
+  "game": true,
+  "color": {
+   "light": "#12924f",
+   "dark": "#39e07f"
+  },
+  "ko": {
+   "label": "초록 · 자율 연결 · 실제 게임 2,788점",
+   "name": "초록",
+   "desc": "초록 꼬마선충. 게임과 뉴런 사이의 연결까지 스스로 배웠어요. 적이 정면에 오면 70% 쏘는데, 적 방향 감각과 포탄 촉각을 함께 써서 조준해요. 먹이 냄새를 잘 따라가요."
+  },
+  "en": {
+   "label": "Green · free wiring · real game 2,788",
+   "name": "green",
+   "desc": "The green worm. It also learned the links between the game and its neurons. It fires 70% of the time at an enemy straight ahead, aiming with its enemy-direction senses and shell touch together. It follows food odour well."
+  }
+ },
+ {
+  "id": "pgh_b",
+  "game": false,
+  "color": {
+   "light": "#a88a00",
+   "dark": "#e8cc3a"
+  },
+  "ko": {
+   "label": "노랑 · 천국 500세대 · 약 560걸음",
+   "name": "노랑",
+   "desc": "노란 꼬마선충. 초록에서 출발해, 먹이를 다 먹으면 끝나는 천국(포식자 없음)에서 500세대를 더 진화했어요. 먹이를 빨리 다 먹는 데만 맞춰졌어요. 시험 20판을 모두 다 먹었고 평균 561걸음이에요. '천국 먹이판'에서 보면 길을 외웠는지 볼 수 있어요."
+  },
+  "en": {
+   "label": "Yellow · heaven 500 gens · ~560 steps",
+   "name": "yellow",
+   "desc": "The yellow worm. It started as green and evolved 500 more generations in heaven (no predator; the game ends once all the food is eaten), tuned only to clear the food fast. It cleared all 20 test games, 561 steps on average. Use 'Heaven food board' to see whether it learned a route."
+  }
+ },
+ {
+  "id": "pgh_b_late",
+  "game": false,
+  "color": {
+   "light": "#c2417a",
+   "dark": "#ff7ab6"
+  },
+  "ko": {
+   "label": "분홍 · 천국 1,760세대 · 약 600걸음",
+   "name": "분홍",
+   "desc": "분홍 꼬마선충. 노랑을 천국에서 1,260세대 더 학습시켰어요(천국에서 모두 1,760세대). 학습 기록은 천국 1,100세대쯤부터 더 오르지 않았어요. 시험 20판 중 19판을 다 먹었고 평균 601걸음으로, 노랑(20판, 561걸음)보다 나아지지 않았어요. 쓸 일이 없던 쏘기는 잃었어요."
+  },
+  "en": {
+   "label": "Pink · heaven 1,760 gens · ~600 steps",
+   "name": "pink",
+   "desc": "The pink worm. Yellow after 1,260 more generations in heaven (1,760 heaven generations in all). Its training record stopped rising around heaven generation 1,100. It cleared 19 of the 20 test games, 601 steps on average, no better than yellow (20 games, 561 steps). It lost firing, which heaven never needed."
+  }
+ },
+ {
+  "id": "pgh_b_final",
+  "game": false,
+  "color": {
+   "light": "#8a5a2b",
+   "dark": "#d39b62"
+  },
+  "ko": {
+   "label": "갈색 · 천국 2,086세대 · 약 630걸음",
+   "name": "갈색",
+   "desc": "갈색 꼬마선충. 천국 경주의 마지막 모델이에요(천국에서 모두 2,086세대). 시험 20판을 모두 다 먹었고 평균 629걸음, 가장 빠른 판은 463걸음이에요. 분홍과 달리 오른쪽으로도 아주 가끔 돌고(20판에 35번), 뒤로 돌기는 분홍의 절반쯤만 써요. 주변에 아무것도 없으면 벽을 따라 크게 돌아요."
+  },
+  "en": {
+   "label": "Brown · heaven 2,086 gens · ~630 steps",
+   "name": "brown",
+   "desc": "The brown worm, the last heaven-race model (2,086 heaven generations in all). It cleared all 20 test games, 629 steps on average, 463 at best. Unlike pink it very occasionally turns right (35 times in 20 games) and turns around about half as often. With nothing around, it circles along the walls."
+  }
+ },
+ {
+  "id": "pgt_b",
+  "game": false,
+  "color": {
+   "light": "#6f8f00",
+   "dark": "#c6e64a"
+  },
+  "ko": {
+   "label": "연두 · 분홍에서 포식자 학습 · 실제 게임 2,033점",
+   "name": "연두",
+   "desc": "연두 꼬마선충. 천국에서 먹이 먹기를 익힌 분홍을, 포식자가 무작위 자리에 나오는 놀이터에서 500세대 더 학습시켰어요. 놀이터에서는 가장 높은 점수(12판 평균 5,162)를 냈지만 적을 한 번도 쏘지 않았어요. 먹이를 빨리 먹고 오래 버티는 쪽으로 점수를 냈고, 실제 게임에서는 2,033점이었어요."
+  },
+  "en": {
+   "label": "Lime · pink + predator training · real game 2,033",
+   "name": "lime",
+   "desc": "The lime worm. Pink, which learned to eat fast in heaven, trained 500 more generations on the playground where the predator appears at random spots. It scored highest on the playground (5,162 over 12 games) but never fired once: it scores by eating fast and lasting long. In the real game it scored 2,033."
+  }
+ },
+ {
+  "id": "pgx_freefire_k200",
+  "game": true,
+  "color": {
+   "light": "#2f6fb3",
+   "dark": "#6fb0ff"
+  },
+  "ko": {
+   "label": "파랑 · 지정 연결 · 실제 게임 2,225점",
+   "name": "파랑",
+   "desc": "파란 꼬마선충. 사람이 정한 연결이고, 적을 맞히면 200점인 놀이터에서 배웠어요. 사냥꾼이에요: 옆에 적이 있으면 89% 그쪽으로 돌고, 입 감각(I2)으로 조준해요."
+  },
+  "en": {
+   "label": "Blue · fixed wiring · real game 2,225",
+   "name": "blue",
+   "desc": "The blue worm. Hand-picked links, trained where an enemy hit is worth 200 points. A hunter: with an enemy beside it, it turns towards it 89% of the time, and aims with the mouth sense I2."
+  }
+ },
+ {
+  "id": "pgx_freefire",
+  "game": true,
+  "color": {
+   "light": "#b06a12",
+   "dark": "#f0a640"
+  },
+  "ko": {
+   "label": "주황 · 지정 연결, 적 100점 · 실제 게임 2,496점",
+   "name": "주황",
+   "desc": "주황 꼬마선충. 사람이 정한 연결이고, 적이 100점인 놀이터에서 배웠어요. 몸을 잘 돌리지 않고, 적이 정면에 오면 쏘는 쪽이에요."
+  },
+  "en": {
+   "label": "Orange · fixed wiring, 100-pt hits · real game 2,496",
+   "name": "orange",
+   "desc": "The orange worm. Hand-picked links, trained where an enemy hit is worth 100 points. It rarely turns; it fires when an enemy comes straight ahead."
+  }
+ },
+ {
+  "id": "pgx_a2e",
+  "game": true,
+  "color": {
+   "light": "#7a4fb5",
+   "dark": "#b597f0"
+  },
+  "ko": {
+   "label": "보라 · 지정 연결, 적 두 대 · 실제 게임 2,492점",
+   "name": "보라",
+   "desc": "보라 꼬마선충. 사람이 정한 연결이고, 적이 두 대 나오는 놀이터에서 배웠어요. 정면의 적에게 60% 쏘고, 입 감각(I2)과 적 감각으로 조준해요."
+  },
+  "en": {
+   "label": "Purple · fixed wiring, two enemies · real game 2,492",
+   "name": "purple",
+   "desc": "The purple worm. Hand-picked links, trained in a playground where a second enemy joins. It fires 60% of the time at an enemy straight ahead, aiming with the mouth sense I2 and the enemy senses."
+  }
+ },
+ {
+  "id": "pgx_b2e",
+  "game": true,
+  "color": {
+   "light": "#0e8784",
+   "dark": "#45d1cc"
+  },
+  "ko": {
+   "label": "청록 · 자율 연결, 적 두 대 · 실제 게임 2,133점",
+   "name": "청록",
+   "desc": "청록 꼬마선충. 연결까지 스스로 배웠고, 적이 두 대 나오는 놀이터에서 배웠어요. 조준 대신 거의 쉬지 않고 쏴요. 적이 없을 때도 98% 쏴요."
+  },
+  "en": {
+   "label": "Teal · free wiring, two enemies · real game 2,133",
+   "name": "teal",
+   "desc": "The teal worm. It learned its links too, in a playground where a second enemy joins. Instead of aiming it fires almost all the time, 98% even with no enemy ahead."
+  }
+ }
+]
