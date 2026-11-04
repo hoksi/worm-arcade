@@ -130,8 +130,28 @@ const KO = { smell_up: "냄새 진해짐", smell_down: "냄새 약해짐", pred_
 const KEYS = { coin: ['Digit5', '5', 53], start: ['Digit1', '1', 49], up: ['ArrowUp', 'ArrowUp', 38], down: ['ArrowDown', 'ArrowDown', 40],
   left: ['ArrowLeft', 'ArrowLeft', 37], right: ['ArrowRight', 'ArrowRight', 39], fire: ['ControlLeft', 'Control', 17],
   // two players (2026-11-03): MAME's default player-2 keys, 2-player start, and F3 = soft reset
-  start2: ['Digit2', '2', 50], reset: ['F3', 'F3', 114], p2up: ['KeyR', 'r', 82], p2down: ['KeyF', 'f', 70], p2left: ['KeyD', 'd', 68],
-  p2right: ['KeyG', 'g', 71], p2fire: ['KeyA', 'a', 65] };
+  start2: ['Digit2', '2', 50], reset: ['F3', 'F3', 114], p2up: ['KeyW', 'w', 87], p2down: ['KeyS', 's', 83], p2left: ['KeyA', 'a', 65],
+  p2right: ['KeyD', 'd', 68], p2fire: ['KeyJ', 'j', 74] };   // matches P2CFG below
+// player 2 on W A S D + J (2026-11-04, the user asked for WASD to move and J to fire): a MAME default.cfg
+// written into the emulator's file system before it starts; the old player-2 buttons on A/S/Q/W are cleared so
+// nothing overlaps. Player 1 (the worm) keeps the arrows and Ctrl.
+const P2CFG = `<?xml version="1.0"?>
+<mameconfig version="10">
+  <system name="default">
+    <input>
+      <port type="P2_JOYSTICK_UP"><newseq type="standard">KEYCODE_W</newseq></port>
+      <port type="P2_JOYSTICK_LEFT"><newseq type="standard">KEYCODE_A</newseq></port>
+      <port type="P2_JOYSTICK_DOWN"><newseq type="standard">KEYCODE_S</newseq></port>
+      <port type="P2_JOYSTICK_RIGHT"><newseq type="standard">KEYCODE_D</newseq></port>
+      <port type="P2_BUTTON1"><newseq type="standard">KEYCODE_J</newseq></port>
+      <port type="P2_BUTTON2"><newseq type="standard">NONE</newseq></port>
+      <port type="P2_BUTTON3"><newseq type="standard">NONE</newseq></port>
+      <port type="P2_BUTTON4"><newseq type="standard">NONE</newseq></port>
+    </input>
+  </system>
+</mameconfig>
+`;
+
 function key(name, down) {
   const [code, k, kc] = KEYS[name];
   const e = new KeyboardEvent(down ? 'keydown' : 'keyup', { code, key: k, bubbles: true, cancelable: true });
@@ -159,7 +179,8 @@ async function newGame() {
 }
 function setCoop(on) {
   coop = on;
-  $("coop").classList.toggle("on", on); $("coop").textContent = on ? "혼자 하기" : "같이 하기 (2P)";
+  const cb = $("coop");                             // the 2P button is off the page for now
+  if (cb) { cb.classList.toggle("on", on); cb.textContent = on ? "혼자 하기" : "같이 하기 (2P)"; }
   $("pad").hidden = !on;
   newGame();
 }
@@ -267,9 +288,9 @@ function startMAME(buf) {
   setStatus("wait", "게임 켜는 중…");
   if ($("demo").src) $("demo").pause();
   window.Module = {
-    arguments: ["supertnk", "-rompath", "/roms", "-sound", "none", "-skip_gameinfo", "-norotate", "-video", "soft", "-window", "-nomax", "-nokeepaspect", "-resolution", "256x256"],
+    arguments: ["supertnk", "-rompath", "/roms", "-sound", "none", "-skip_gameinfo", "-norotate", "-video", "soft", "-window", "-nomax", "-nokeepaspect", "-resolution", "256x256", "-cfg_directory", "/cfg"],
     canvas: $("canvas"),
-    preRun: [() => { FS.mkdir("/roms"); FS.writeFile("/roms/supertnk.zip", new Uint8Array(buf)); }],
+    preRun: [() => { FS.mkdir("/roms"); FS.writeFile("/roms/supertnk.zip", new Uint8Array(buf)); FS.mkdir("/cfg"); FS.writeFile("/cfg/default.cfg", P2CFG); }],
     print: t => console.log(t), printErr: t => console.log("ERR " + t), onAbort: e => log("MAME 멈춤: " + e),
     onRuntimeInitialized: () => { log("MAME 준비"); setTimeout(async () => { booted = true; goLive(); await newGame(); }, 6000); },
   };
