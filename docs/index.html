@@ -28,10 +28,12 @@
   .drop .err { color: var(--alert); }
   @media (max-width: 760px) { #view { width: 100%; height: auto; aspect-ratio: 4 / 5; } }
   .pad { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 384px; user-select: none; -webkit-user-select: none; touch-action: none; }
-  .dpad { display: grid; grid-template: repeat(3, 56px) / repeat(3, 56px); }
-  .dpad button, .firebtn { touch-action: none; font-size: 1.3rem; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); color: #7fd0ff; }
-  .dpad .up { grid-area: 1 / 2; } .dpad .left { grid-area: 2 / 1; } .dpad .right { grid-area: 2 / 3; } .dpad .down { grid-area: 3 / 2; }
-  .firebtn { width: 96px; height: 96px; border-radius: 50%; font-size: 1.1rem; font-weight: 700; color: #ff6b7f; }
+  /* tap a direction once: player 2 keeps going until a wall stops it; shells go out by themselves (2026-11-04, user) */
+  .dpad { display: grid; grid-template: repeat(3, 64px) / repeat(3, 64px); gap: 4px; }
+  .dpad button { touch-action: none; font-size: 1.4rem; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); color: #7fd0ff; padding: 0; }
+  .dpad .up { grid-area: 1 / 2; } .dpad .left { grid-area: 2 / 1; } .dpad .stop { grid-area: 2 / 2; font-size: 1rem; color: var(--muted); } .dpad .right { grid-area: 2 / 3; } .dpad .down { grid-area: 3 / 2; }
+  .autofire { touch-action: manipulation; font-size: .85rem; padding: 10px 14px; border-radius: 999px; }
+  .autofire[aria-pressed="true"] { background: #ff6b7f; color: #0b0f0d; border-color: #ff6b7f; font-weight: 700; }
   .pad button.on { background: #24384a; }
   #coop.on { background: #7fd0ff; color: #0b0f0d; }
   #canvas { position: fixed; left: -9999px; top: 0; width: 256px; height: 256px; }   /* MAME draws here (raw, unrotated) */
@@ -81,13 +83,14 @@
     <div class="screen" id="demoBox" hidden><video id="demo" data-src="media/play.mp4" poster="media/poster.png" muted loop playsinline></video></div>
     <div class="screen" id="liveBox" hidden><canvas id="view" width="256" height="256"></canvas></div>
     <div class="pad" id="pad" hidden aria-label="Player 2 controls">
-      <div class="dpad">
-        <button class="up" data-k="p2up" aria-label="Up">▲</button>
-        <button class="left" data-k="p2left" aria-label="Left">◀</button>
-        <button class="right" data-k="p2right" aria-label="Right">▶</button>
-        <button class="down" data-k="p2down" aria-label="Down">▼</button>
+      <div class="dpad" id="dpad" aria-label="Move: tap a direction once and keep going">
+        <button class="up" data-d="p2up" aria-label="Up">▲</button>
+        <button class="left" data-d="p2left" aria-label="Left">◀</button>
+        <button class="stop" data-d="" aria-label="Stop">■</button>
+        <button class="right" data-d="p2right" aria-label="Right">▶</button>
+        <button class="down" data-d="p2down" aria-label="Down">▼</button>
       </div>
-      <button class="firebtn" data-k="p2fire">FIRE</button>
+      <button class="autofire" id="autofire" aria-pressed="true">Auto-fire on</button>
     </div>
   </div>
   <div class="panel">
@@ -106,7 +109,7 @@
     <div class="row num" id="nums"></div>
     <div><div class="label">Active senses</div><div class="chips" id="senses"></div></div>
     <label class="check" id="coopBox" hidden><input type="checkbox" id="coop"> Play with the worm (player 2)</label>
-    <div class="coophelp" id="coopHelp" hidden><b>You are sky-blue player 2.</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>J</kbd> fire<br><span>On a phone, use the buttons under the game. Yellow player 1 is still the worm.</span></div>
+    <div class="coophelp" id="coopHelp" hidden><b>You are sky-blue player 2.</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>J</kbd> fire<br><span>On a phone, tap a direction under the game once and player 2 keeps going that way (■ stops); shells go out by themselves. Yellow player 1 is still the worm.</span></div>
     <div class="row">
       <button id="restart" hidden>New game</button>
       <button id="forgetRom" hidden>Forget saved ROM</button>
@@ -192,15 +195,34 @@ function setCoop(on) {
   coop = on;
   $("coop").checked = on;
   $("pad").hidden = !on; $("coopHelp").hidden = !on;
+  if (!on && padDir) setDir(padDir);                       // unticked: let go of the held direction
   setStatus("live", on ? "LIVE · playing together with the worm (player 1)" : "LIVE · the worm is playing now");
   newGame();
 }
-// on-screen pad for player 2: press and hold, several fingers at once
-document.querySelectorAll("#pad [data-k]").forEach(b => {
-  const k = b.dataset.k, up = () => { if (b.classList.contains("on")) { b.classList.remove("on"); key(k, false); } };
-  b.addEventListener("pointerdown", e => { e.preventDefault(); b.setPointerCapture(e.pointerId); b.classList.add("on"); key(k, true); });
-  for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(ev, up);
+// on-screen pad for player 2 (2026-11-04, user: holding a direction while firing was hard on a phone → "tap a direction
+// and keep going"; a tank held against a wall just stays there, as with a held key on a PC, so the screen is not watched):
+// a tapped direction stays held until another direction or the stop button is tapped; auto-fire presses and releases fire
+let padDir = null;
+function setDir(dir) {
+  if (dir === padDir) dir = null;                         // tapping the same way again stops
+  if (padDir) key(padDir, false);
+  padDir = dir;
+  if (dir) key(dir, true);
+  document.querySelectorAll("#dpad [data-d]").forEach(b => b.classList.toggle("on", !!dir && b.dataset.d === dir));
+}
+document.querySelectorAll("#dpad [data-d]").forEach(b => {
+  // on the finger going down, not on "click" (that waits for the finger to lift: the user felt a half-beat lag)
+  b.addEventListener("pointerdown", e => { e.preventDefault(); setDir(b.dataset.d || null); });
   b.addEventListener("contextmenu", e => e.preventDefault());
+});
+let autoFire = true, firePhase = false;
+setInterval(() => {                                      // sends nothing while idle, so a PC player's own J key is left alone
+  const want = coop && autoFire && !$("pad").hidden && getComputedStyle($("pad")).display !== "none", next = want ? !firePhase : false;
+  if (next !== firePhase) { firePhase = next; key("p2fire", firePhase); }
+}, 120);
+$("autofire").addEventListener("click", () => {
+  autoFire = !autoFire; $("autofire").setAttribute("aria-pressed", autoFire);
+  $("autofire").textContent = autoFire ? "Auto-fire on" : "Auto-fire off";
 });
 
 // ---- worm
