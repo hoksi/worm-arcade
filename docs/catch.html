@@ -91,6 +91,7 @@ details { color: var(--muted); font-size: .9rem; }
     <button class="toggle" id="fireBack" aria-pressed="true">선충 반격 켜짐</button>
     <button class="toggle" id="speedBtn" aria-pressed="false">탱크 속도: 보통</button>
     <button class="toggle" id="soundBtn" aria-pressed="true">소리 켜짐</button>
+    <button class="toggle" id="artBtn" aria-pressed="true" hidden>그림: 스프라이트</button>
     <button id="restartBtn">다시 시작</button>
   </div>
 
@@ -374,7 +375,61 @@ function end() {
 
 // ---- drawing
 function col(m) { return dark() ? m.color.dark : m.color.light; }
-function draw() {
+// ---- art (user, 2026-11-05: "나중에 배경과 캐릭터에 이미지를 씌울건데 스프라이트로" -> "예시이미지로 제작해주면 그걸
+// 전달해서 디자인"): art/sprites.png (24x24 cells, positions in art/sprites.json) and art/background.png (472x384).
+// A designer replaces the PNGs; nothing here changes. Worm parts and shells are drawn in grey and tinted per worm colour.
+// Without the files (or with the 그림 button) the plain shapes below are drawn. Sprites are only looks: hit boxes stay.
+const art = { ok: false, use: true, tints: new Map() };
+async function loadArt() {
+  const img = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+  try {
+    const [map, sheet, bg] = await Promise.all([fetch("catch-art/sprites.json").then(r => r.json()), img("catch-art/sprites.png"), img("catch-art/background.png")]);
+    Object.assign(art, { map: map.sprites, sheet, bg, ok: true });
+    const pat = name => { const c = cut(name); return ctx.createPattern(c, "repeat"); };
+    art.wall = pat("wall"); art.crack = pat("crack");
+  } catch (e) { art.ok = false; }
+  $("artBtn").hidden = !art.ok;
+}
+function cut(name) {                                          // one sprite as its own small canvas
+  const [x, y, w, h] = art.map[name], c = document.createElement("canvas"); c.width = w; c.height = h;
+  c.getContext("2d").drawImage(art.sheet, x, y, w, h, 0, 0, w, h); return c;
+}
+function tinted(name, color) {                                // grey sprite x colour, alpha kept
+  const key = name + color; if (art.tints.has(key)) return art.tints.get(key);
+  const c = cut(name), g = c.getContext("2d");
+  g.globalCompositeOperation = "multiply"; g.fillStyle = color; g.fillRect(0, 0, c.width, c.height);
+  g.globalCompositeOperation = "destination-in"; g.drawImage(cut(name), 0, 0);
+  art.tints.set(key, c); return c;
+}
+function spr(name, x, y, { angle = 0, alpha = 1, tint = null } = {}) {   // centred at canvas px (x, y)
+  const src = tint ? tinted(name, tint) : cut(name);
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); if (angle) ctx.rotate(angle);
+  ctx.drawImage(src, -src.width / 2, -src.height / 2); ctx.restore();
+}
+function drawSprites() {
+  const W = cv.width, H = cv.height, S = SCALE;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(art.bg, 0, 0, W, H);
+  for (const [x, y, w, h, crack] of game.walls) { ctx.fillStyle = crack ? art.crack : art.wall; ctx.fillRect(x * S, y * S, w * S, h * S); }
+  if (game.tank) { const best = exitFor(); for (const e of EXITS) if (!boxHitsWall(e, HALF + 2)) spr(e === best ? "exit_on" : "exit_off", e[0] * S, e[1] * S); }
+  for (const h of game.holes) spr(`hole_${(game.t >> 1) % 4}`, h.p[0] * S, h.p[1] * S);
+  for (const f of game.flashes) if (!f.small) spr("flash", f.p[0] * S, f.p[1] * S, { alpha: f.t / 8 });
+  for (const w of game.worms) {
+    if (!w.alive) continue;
+    const c = col(w.info), pts = (w.trail.length ? w.trail : [w.p]).slice(-6);
+    pts.slice(0, -1).forEach(([x, y], i) => spr(i === 0 && pts.length > 2 ? "worm_tail" : "worm_body", x * S, y * S, { tint: c }));
+    const ang = Math.atan2(w.face[1], w.face[0]) + Math.PI / 2;        // the head is drawn facing up
+    spr(`worm_head_${(game.t + w.id.length) % 2}`, w.p[0] * S, w.p[1] * S, { angle: ang, tint: c });
+    for (const sh of w.shells) if (sh.x >= 0 && sh.x < EW && sh.y >= 0 && sh.y < EH) spr(sh.r > 4 ? "shell_big" : "shell", sh.x * S, sh.y * S, { tint: c });
+  }
+  const tk = game.tank;
+  if (tk && !(tk.armor && Math.floor(tk.armor / 3) % 2)) {
+    const dir = tk.face[0] > 0 ? "right" : tk.face[0] < 0 ? "left" : tk.face[1] > 0 ? "down" : "up";
+    spr(`tank_${dir}`, tk.p[0] * S, tk.p[1] * S);
+  }
+}
+function draw() { if (art.ok && art.use) drawSprites(); else drawShapes(); }
+function drawShapes() {
   const W = cv.width, H = cv.height, S = SCALE;
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = css.getPropertyValue("--wall");
@@ -477,6 +532,10 @@ $("soundBtn").onclick = e => {
   e.currentTarget.setAttribute("aria-pressed", Sound.on); e.currentTarget.textContent = `소리 ${Sound.on ? "켜짐" : "꺼짐"}`;
   try { localStorage.setItem("npc-sound", Sound.on ? "on" : "off"); } catch (err) {}
 };
+$("artBtn").onclick = e => {
+  art.use = !art.use; e.currentTarget.setAttribute("aria-pressed", art.use);
+  e.currentTarget.textContent = `그림: ${art.use ? "스프라이트" : "도형"}`;
+};
 $("speedBtn").onclick = e => {
   game.speed = (game.speed + 1) % SPEEDS.length; e.currentTarget.setAttribute("aria-pressed", game.speed > 0);
   e.currentTarget.textContent = `탱크 속도: ${SPEEDS[game.speed][0]}`;
@@ -485,6 +544,7 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderLege
 
 setInterval(tick, TICK_MS);
 (function frame() { draw(); requestAnimationFrame(frame); })();
+loadArt();
 load().catch(err => { $("ovText").textContent = "불러오기 실패: " + err.message; });
 window.__game = game;   // for automated checks
 </script>
