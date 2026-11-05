@@ -94,6 +94,11 @@ details { color: var(--muted); font-size: .9rem; }
     <button class="toggle" id="artBtn" aria-pressed="true" hidden>그림: 스프라이트</button>
     <button id="restartBtn">다시 시작</button>
   </div>
+  <div class="row">
+    <button id="dbBtn">진화시킨 선충 불러오기 (.db)</button>
+    <input type="file" id="dbFile" accept=".db,.sqlite,application/octet-stream" hidden>
+    <span class="help" id="dbNote" style="margin:0"></span>
+  </div>
 
   <div class="legend" id="legend"></div>
 
@@ -179,6 +184,67 @@ const cv = $("cv"), ctx = cv.getContext("2d"), css = getComputedStyle(document.d
 const dark = () => matchMedia("(prefers-color-scheme: dark)").matches;
 
 let base, models = {}, index = [];
+// ---- worms evolved in 선충 진화시키기 (user, 2026-11-05: "진화시킨 DB를 선충 잡기 게임에 적용" → "2번" = load the .db
+// file). Genes (1,595 float32) are decoded exactly as evolve/sim.js decode() (= worm.py set_params), onto the structure
+// of the public free-wiring worm pgx_bfree_k200. Which worms (up to 6): the best 20-game-tested ones first, then the
+// best of the last generation (by its game average). The chosen worms are kept in this browser (localStorage) until another file is loaded.
+const MINE_COLORS = [["#c2417a", "#ff8fc0"], ["#6f8f00", "#c6e86a"], ["#8a5a2b", "#e0b080"], ["#0e8784", "#5fe0dc"], ["#2f6fb3", "#8fc0ff"], ["#7a4fb5", "#c4a2ff"]];
+const MINE_PATTERNS = ["pg2_r", "pgx_bfree_k200", "pgx_freefire_k200", "pgx_freefire", "pgx_a2e", "pgx_b2e"];
+function decodeGenes(genes) {
+  const t = models.pgx_bfree_k200, f = Math.fround, G = Math.max(...base.group) + 1, n = base.group.length;
+  const LO = [0.005, 0.001, 0.1], HI = [0.1, 0.03, 0.6], cl = (v, a, b) => Math.min(Math.max(v, a), b);
+  const out = new Array(n), bias = new Array(n);
+  for (let i = 0; i < n; i++) { const k = base.group[i]; out[i] = f(cl(1 + genes[k], -2, 2)); bias[i] = f(cl(0.5 * genes[G + k], -0.5, 0.5)); }
+  const readout = [0, 1, 2].map(j => f(LO[j] + (HI[j] - LO[j]) * (1 + Math.tanh(genes[2 * G + j])) / 2));
+  const nb = 2 * G + 3, R = t.Win.length, C = t.Win[0].length, R2 = t.Wout.length, C2 = t.Wout[0].length, Win = [], Wout = [];
+  for (let r = 0; r < R; r++) Win.push(Array.from(genes.subarray(nb + r * C, nb + (r + 1) * C)));
+  for (let r = 0; r < R2; r++) Wout.push(Array.from(genes.subarray(nb + R * C + r * C2, nb + R * C + (r + 1) * C2)));
+  return Object.assign({}, t, { out, bias, readout, Win, Wout, run: "evolve", gen: 0 });
+}
+const b64 = { enc: u8 => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); },
+              dec: t => Uint8Array.from(atob(t), c => c.charCodeAt(0)) };
+function useMine(set) {                                      // set = { file, stage, worms: [{ name, gen, score, kind, genes: Float32Array }] }
+  index = index.filter(m => !m.mine); ROSTERS.mine = { name: "내가 키운 선충", ids: [] };
+  set.worms.forEach((w, k) => {
+    const id = `mine${k}`, [light, darkc] = MINE_COLORS[k % MINE_COLORS.length];
+    models[id] = decodeGenes(w.genes); PATTERNS[id] = PATTERNS[MINE_PATTERNS[k % MINE_PATTERNS.length]];
+    index.push({ id, mine: true, color: { light, dark: darkc }, ko: { name: `${k + 1}호 ${w.name}`,
+      desc: `진화시키기에서 키운 선충 ${w.name} (${w.gen}세대, ${set.stage || "?"} 무대). ${w.kind === "test" ? `20판 시험 평균 ${w.score.toFixed(1)}점` : `${w.gen}세대 평균 ${w.score.toFixed(1)}점`}. 파일: ${set.file}` } });
+    ROSTERS.mine.ids.push(id);
+  });
+}
+async function loadSqlJs() {
+  if (window.initSqlJs) return initSqlJs({ locateFile: f => `catch-lib/${f}` });
+  await new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "catch-lib/sql-wasm.js"; sc.onload = ok; sc.onerror = () => bad(new Error("sql.js")); document.head.append(sc); });
+  return initSqlJs({ locateFile: f => `catch-lib/${f}` });
+}
+async function readEvolveDb(file) {
+  const SQL = await loadSqlJs(), db = new SQL.Database(new Uint8Array(await file.arrayBuffer()));
+  const q = (sql, p = []) => { const st = db.prepare(sql); st.bind(p); const r = []; while (st.step()) r.push(st.getAsObject()); st.free(); return r; };
+  const meta = Object.fromEntries(q("SELECT key, value FROM meta").map(r => [r.key, r.value]));
+  let rows = [];
+  try { rows = q("SELECT t.worm id, w.name, w.gen, t.mean score, 'test' kind FROM tests t JOIN worms w ON w.id=t.worm ORDER BY t.mean DESC LIMIT 6"); } catch (e) {}
+  if (rows.length < 6) {                                     // fill up with the best of the last generation played
+    const g = (q("SELECT MAX(game) g FROM plays")[0] || {}).g, have = new Set(rows.map(r => r.id));
+    if (g != null) rows = rows.concat(q("SELECT w.id, w.name, w.gen, AVG(p.score) score, 'gen' kind FROM worms w JOIN plays p ON p.worm=w.id AND p.game=? GROUP BY w.id ORDER BY score DESC", [g])
+      .filter(r => !have.has(r.id))).slice(0, 6);
+  }
+  const worms = rows.map(r => { const b = q("SELECT genes FROM worms WHERE id=?", [r.id])[0].genes;
+    return { name: r.name, gen: r.gen, score: r.score, kind: r.kind, genes: new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)) }; });
+  db.close();
+  if (!worms.length) throw new Error("선충 기록이 없어요");
+  if (worms.some(w => w.genes.length !== 1595)) throw new Error("진화시키기 파일이 아니에요");
+  return { file: file.name, stage: meta.stage, worms };
+}
+function saveMine(set) {
+  try { localStorage.setItem("npc-mine", JSON.stringify(Object.assign({}, set, { worms: set.worms.map(w => Object.assign({}, w, { genes: b64.enc(new Uint8Array(w.genes.buffer)) })) }))); } catch (e) {}
+}
+function restoreMine() {
+  try { const t = localStorage.getItem("npc-mine"); if (!t) return null; const set = JSON.parse(t);
+    set.worms.forEach(w => { const u = b64.dec(w.genes); w.genes = new Float32Array(u.buffer); }); return set; } catch (e) { return null; }
+}
+const groupOrder = () => ["predator", "heaven"].concat(ROSTERS.mine && ROSTERS.mine.ids.length ? ["mine"] : []);
+function showGroup() { $("groupBtn").textContent = `선충 무리: ${ROSTERS[game.group].name}`; }
 const game = { group: "predator", worms: [], foods: [], walls: [], holes: [], holeWait: [], flashes: [], tank: null, t: 0, round: 1, totalT: 0, caught: 0, lives: LIVES,
                state: "load", fireBack: true, speed: 0 };
 // worm = true: cracks are open (worms, their shells and their touch senses); otherwise cracks block (tank, spawns, food)
@@ -191,6 +257,8 @@ async function load() {
   const all = new Set(Object.values(ROSTERS).flatMap(r => r.ids));
   index = (await (await fetch("models/index.json")).json()).filter(m => all.has(m.id)).concat(EXTRA);
   await Promise.all(index.map(async m => { models[m.id] = await (await fetch(m.file || `models/${m.id}.json`)).json(); }));
+  const saved = restoreMine();
+  if (saved) { useMine(saved); $("dbNote").textContent = `불러온 파일: ${saved.file} (${saved.worms.length}마리)`; }
   $("ovText").textContent = "선충을 모두 잡으면 다음 라운드로 가요. 라운드마다 벽이 생겨요. 목숨을 다 잃으면 끝나요.";
   $("startBtn").disabled = false;
   game.state = "ready"; setupRound(); draw();
@@ -521,10 +589,21 @@ $("fireBack").onclick = e => {
   if (!game.fireBack) game.worms.forEach(w => w.shells = []);
 };
 $("groupBtn").onclick = e => {
-  game.group = game.group === "heaven" ? "predator" : "heaven";
-  e.currentTarget.textContent = `선충 무리: ${ROSTERS[game.group].name}`;
+  const order = groupOrder(); game.group = order[(order.indexOf(game.group) + 1) % order.length];
+  showGroup();
   if (game.state === "load") return;
   if (game.state === "play" || game.state === "between") start(); else { game.round = 1; setupRound(); }
+};
+$("dbBtn").onclick = () => $("dbFile").click();
+$("dbFile").onchange = async e => {
+  const file = e.target.files[0]; e.target.value = ""; if (!file || game.state === "load") return;
+  $("dbNote").textContent = "읽는 중…";
+  try {
+    const set = await readEvolveDb(file);
+    useMine(set); saveMine(set); game.group = "mine"; showGroup();
+    $("dbNote").textContent = `불러온 파일: ${set.file} (${set.worms.length}마리) · 선충 무리를 "내가 키운 선충"으로 바꿨어요`;
+    if (game.state === "play" || game.state === "between") start(); else { game.round = 1; setupRound(); draw(); }
+  } catch (err) { $("dbNote").textContent = "불러오기 실패: " + (err && err.message || err); }
 };
 try { if (localStorage.getItem("npc-sound") === "off") { Sound.setOn(false); $("soundBtn").setAttribute("aria-pressed", false); $("soundBtn").textContent = "소리 꺼짐"; } } catch (e) {}
 $("soundBtn").onclick = e => {
