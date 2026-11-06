@@ -86,9 +86,19 @@
   }
 
   // tankenv.Env.observe: a small red thing that was not there one step ago is a shell
+  // Armour flash (2026-11-05, as tankenv.Env.observe): while armoured (after a red diamond, and in the grace after
+  // (re)spawning) our tank blinks yellow/red, at most 2 red steps in a row. Read as colours, a red step lost the tank (the
+  // worm stopped and reset its brain) and put an enemy on top of it. Now: no yellow tank, but a tank-sized red blob within
+  // 10 px of where it was seen at most 3 steps ago -> that blob is our tank. A longer gap (explosion) is left as before.
   class Observer {
-    constructor() { this.prev = []; }
+    constructor() { this.prev = []; this.seen = null; this.gap = 0; }
     observe(o) {
+      if (!o.player && this.seen && this.gap < 3) {
+        const lp = this.seen, d = e => Math.abs(e[0] - lp[0]) + Math.abs(e[1] - lp[1]), near = o.enemies.filter(e => d(e) < 10);
+        if (near.length) { const me = near.reduce((a, b) => d(b) < d(a) ? b : a); o.player = me; o.enemies = o.enemies.filter(e => e !== me); o.flash = true; }
+      }
+      if (o.player && !o.flash) { this.seen = o.player; this.gap = 0; }
+      else { this.gap++; if (o.flash) this.seen = o.player; }
       const near = m => this.prev.some(q => Math.abs(m[0] - q[0]) + Math.abs(m[1] - q[1]) < 1);
       o.shells = o.mines.filter(m => !near(m));
       o.mines = o.mines.filter(m => !o.shells.includes(m));

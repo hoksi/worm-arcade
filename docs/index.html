@@ -105,6 +105,10 @@
       <span class="label">Model</span>
       <select id="brainSel"></select>
     </div>
+    <div class="row">
+      <label class="filebtn">Load my worms (.db)<input type="file" id="dbFile" accept=".db,.sqlite,application/octet-stream" hidden></label>
+      <span class="cap" id="dbNote">Worms from a .db saved by the worm evolution page join the model list. The file is read only in this browser.</span>
+    </div>
     <div class="row"><span class="label">Now</span><span class="big" id="verdict">waiting</span></div>
     <div class="row num" id="nums"></div>
     <div><div class="label">Active senses</div><div class="chips" id="senses"></div></div>
@@ -127,6 +131,7 @@
 
 <script src="brain.js"></script>
 <script src="play.js"></script>
+<script src="mine.js"></script>
 <script>
 // keep MAME's frames readable after drawing (the canvas is WebGL)
 const _gc = HTMLCanvasElement.prototype.getContext;
@@ -277,6 +282,25 @@ function loop() {
 $("restart").onclick = () => newGame();
 $("coop").onchange = e => setCoop(e.target.checked);   // 2P: the worm keeps player 1, a person plays player 2
 $("brainSel").onchange = e => loadBrain(e.target.value);
+// worms the visitor evolved (mine.js): options "mine0".. in the model list, params decoded from the genes
+function addMine(set) {
+  [...$("brainSel").options].filter(o => o.value.startsWith("mine")).forEach(o => o.remove());
+  set.worms.forEach((w, k) => {
+    const id = `mine${k}`;
+    params[id] = Object.assign(Mine.decode(base, params.pgx_bfree_k200, w.genes), { gen: w.gen });
+    NAME[id] = `my worm #${k + 1} ${w.name}`;
+    $("brainSel").add(new Option(`My worm #${k + 1} ${w.name} · ${w.kind === "test" ? `20-game test ${w.score.toFixed(1)}` : `gen ${w.gen} avg ${w.score.toFixed(1)}`}`, id), k);
+  });
+}
+$("dbFile").onchange = async e => {
+  const file = e.target.files[0]; e.target.value = ""; if (!file) return;
+  $("dbNote").textContent = "reading…";
+  try {
+    const set = await Mine.read(file); Mine.save(set); addMine(set);
+    $("brainSel").value = "mine0"; await loadBrain("mine0");
+    $("dbNote").textContent = `${set.worms.length} worms from ${set.file} are at the top of the model list; switched to #1`;
+  } catch (err) { $("dbNote").textContent = "could not load: is this a .db saved by the worm evolution page?"; }
+};
 
 // ---- the ROM: dropped or picked by the visitor, kept only in this browser
 function romDB(op, data) {
@@ -340,6 +364,8 @@ $("forgetRom").onclick = async () => {              // remove the ROM, say so, t
   // the models, from models/index.json (the same list as the lab)
   const index = await (await fetch("models/index.json")).json(), lang = document.documentElement.lang === "en" ? "en" : "ko";
   for (const b of index) { $("brainSel").add(new Option(b[lang].label, b.id)); NAME[b.id] = b[lang].name; }   // every brain the lab has
+  params.pgx_bfree_k200 = await (await fetch("models/pgx_bfree_k200.json")).json();   // the structure the evolved genes fill
+  const mine = Mine.restore(), def = $("brainSel").value; if (mine) { addMine(mine); $("brainSel").value = def; }   // listed, default unchanged
   await loadBrain($("brainSel").value);
   // the ROM is not part of this page (2026-11-04): the visitor drops their own supertnk.zip, read here in the browser and
   // never uploaded; it is kept in this browser's IndexedDB so a later visit starts at once

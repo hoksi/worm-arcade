@@ -105,6 +105,10 @@
       <span class="label">모델</span>
       <select id="brainSel"></select>
     </div>
+    <div class="row">
+      <label class="filebtn">내 선충 불러오기 (.db)<input type="file" id="dbFile" accept=".db,.sqlite,application/octet-stream" hidden></label>
+      <span class="cap" id="dbNote">선충 진화시키기에서 내려받은 .db의 선충이 모델 목록에 들어가요. 파일은 이 브라우저에서만 읽어요.</span>
+    </div>
     <div class="row"><span class="label">지금 행동</span><span class="big" id="verdict">기다리는 중</span></div>
     <div class="row num" id="nums"></div>
     <div><div class="label">켜진 감각</div><div class="chips" id="senses"></div></div>
@@ -127,6 +131,7 @@
 
 <script src="brain.js"></script>
 <script src="play.js"></script>
+<script src="mine.js"></script>
 <script>
 // keep MAME's frames readable after drawing (the canvas is WebGL)
 const _gc = HTMLCanvasElement.prototype.getContext;
@@ -277,6 +282,25 @@ function loop() {
 $("restart").onclick = () => newGame();
 $("coop").onchange = e => setCoop(e.target.checked);   // 2P: the worm keeps player 1, a person plays player 2
 $("brainSel").onchange = e => loadBrain(e.target.value);
+// worms the visitor evolved (mine.js): options "mine0".. in the model list, params decoded from the genes
+function addMine(set) {
+  [...$("brainSel").options].filter(o => o.value.startsWith("mine")).forEach(o => o.remove());
+  set.worms.forEach((w, k) => {
+    const id = `mine${k}`;
+    params[id] = Object.assign(Mine.decode(base, params.pgx_bfree_k200, w.genes), { gen: w.gen });
+    NAME[id] = `내 선충 ${k + 1}호 ${w.name}`;
+    $("brainSel").add(new Option(`내 선충 ${k + 1}호 ${w.name} · ${w.kind === "test" ? `20판 시험 ${w.score.toFixed(1)}` : `${w.gen}세대 평균 ${w.score.toFixed(1)}`}`, id), k);
+  });
+}
+$("dbFile").onchange = async e => {
+  const file = e.target.files[0]; e.target.value = ""; if (!file) return;
+  $("dbNote").textContent = "읽는 중…";
+  try {
+    const set = await Mine.read(file); Mine.save(set); addMine(set);
+    $("brainSel").value = "mine0"; await loadBrain("mine0");
+    $("dbNote").textContent = `${set.file}에서 ${set.worms.length}마리를 모델 목록 맨 위에 넣고 1호로 바꿨어요`;
+  } catch (err) { $("dbNote").textContent = "불러오기 실패: 선충 진화시키기에서 내려받은 .db 파일인지 확인해 주세요"; }
+};
 
 // ---- the ROM: dropped or picked by the visitor, kept only in this browser
 function romDB(op, data) {
@@ -340,6 +364,8 @@ $("forgetRom").onclick = async () => {              // remove the ROM, say so, t
   // the models, from models/index.json (the same list as the lab)
   const index = await (await fetch("models/index.json")).json(), lang = document.documentElement.lang === "en" ? "en" : "ko";
   for (const b of index) { $("brainSel").add(new Option(b[lang].label, b.id)); NAME[b.id] = b[lang].name; }   // every brain the lab has
+  params.pgx_bfree_k200 = await (await fetch("models/pgx_bfree_k200.json")).json();   // the structure the evolved genes fill
+  const mine = Mine.restore(), def = $("brainSel").value; if (mine) { addMine(mine); $("brainSel").value = def; }   // listed, default unchanged
   await loadBrain($("brainSel").value);
   // the ROM is not part of this page (2026-11-04): the visitor drops their own supertnk.zip, read here in the browser and
   // never uploaded; it is kept in this browser's IndexedDB so a later visit starts at once

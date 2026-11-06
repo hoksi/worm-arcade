@@ -135,7 +135,7 @@ canvas#arena { cursor: crosshair; }
         <div class="label">두 번째 꼬마선충</div>
         <select id="cmpSel" aria-label="비교할 꼬마선충"><option value="">없음</option></select>
         <p class="brainCard" id="cmpCard" hidden></p>
-        <p class="note">판을 누르면 그 자리에 먹이가 생겨요. 포식자에게 부딪히거나 포탄에 맞으면 맞은 쪽 몸에 아픔(강한 촉각)이 들어가고, 꼬마선충은 잠깐 깜빡이며 무적이 되고, 포식자는 꼬마선충에게서 떨어진 다른 자리로 물러나요. 꼬마선충은 죽지 않아요.</p>
+        <p class="note">판을 누르면 그 자리에 먹이가 생겨요. 포식자에게 부딪히거나 포탄에 맞으면 게임에서처럼 꼬마선충이 처음부터 다시 시작해요. 포식자에게서 떨어진 자리에 다시 나타나고, 뇌 상태도 처음으로 돌아가고, 잠깐 깜빡이며 무적이 돼요. 부딪힌 경우에는 포식자도 다른 자리에서 다시 나타나고, 포탄에 맞은 경우에는 포식자가 제자리에 있어요.</p>
       </div>
       <div class="label" id="sensesLabel">지금 켜진 감각</div>
       <div id="senses"></div>
@@ -780,8 +780,7 @@ function drawArena() {
 
 // ---------- playground mode: food and up to two predators in the arena; the senses are computed from the world exactly
 // as in the game page (play.js), each worm's choices move it. A second worm with another brain can share the arena.
-// A bite or a shell hit never kills: it adds pain (strong touch on the side that was hit) for a few steps, the worm
-// blinks invulnerable and that predator goes away to a new random spot.
+// A bite or a shell hit resets the worm as in the game: it comes back elsewhere with a fresh brain, blinking invulnerable.
 // Predators appear at random spots (2026-11-03, the user asked for random spots instead of the four corners, never colliding
 // with a worm): at least SAFE px from every worm (city block) and not on top of another predator.
 let mode = "env", player = null;
@@ -845,13 +844,24 @@ function randomSpot(self) {
 }
 function spawnPred() { if (env.preds.length < MAX_PREDS) env.preds.push({ p: randomSpot(null), face: HEADS[Math.floor(Math.random() * 4)], shell: null, cd: 30 }); }
 function sendBack(e) { e.p = randomSpot(e); e.shell = null; e.cd = 30; }
+// caught (a bite or a shell): as in the game, the worm is reset: it comes back at a random spot away from every predator
+// with a fresh brain state, facing up, blinking invulnerable for a while. After a shell hit the predator stays (the shell is
+// used up); after a crash the predator is reset too.
+// (2026-11-05, user: "선충이 리셋되는게 맞음. 게임도 그렇게 되어 있고"; before, the predator was sent away instead)
+function wormSpot(w) {
+  for (let k = 0; k < 200; k++) {
+    const c = [HALF + 2 + Math.random() * (EW - 2 * HALF - 4), HALF + 2 + Math.random() * (EH - 2 * HALF - 4)];
+    if (env.preds.every(e => dist(c, e.p) >= SAFE) && env.worms.every(o => o === w || !hitBox(c, o.p, 14))) return c;
+  }
+  return farCorner();
+}
 function hurt(w, src, e) {
   w.caught++; w.armor = 25;
-  const [hx, hy] = HEADS[w.player.heading], dx = src[0] - w.p[0], dy = src[1] - w.p[1];
-  const fwd = dx * hx + dy * hy, side = dx * hy - dy * hx;
-  const key = Math.abs(fwd) >= Math.abs(side) ? (fwd > 0 ? "touch_front" : "touch_back") : (side > 0 ? "touch_L" : "touch_R");
-  w.pain = { [key]: 2.0 }; w.painLeft = 4;
-  sendBack(e);
+  const shot = src === e.shell;
+  if (shot) e.shell = null;
+  w.p = wormSpot(w); w.face = [0, -1]; w.shell = null; w.last = null; w.trail = []; w.pain = null; w.painLeft = 0;
+  w.player.brain.reset(); w.player.heading = 0; w.player.turn_cd = 0;   // what the game's worm does when its tank is gone
+  if (!shot) sendBack(e);                                    // a crash resets both, as in the game ("둘 다 리셋되어야 함")
 }
 function predStep(e) {
   const target = env.worms.slice().sort((a, b) => dist(a.p, e.p) - dist(b.p, e.p))[0], [px, py] = target.p;   // chase the nearest worm
